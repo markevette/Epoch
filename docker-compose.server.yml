@@ -1,0 +1,30 @@
+services:
+  epoch:
+    image: ${EPOCH_IMAGE:?set EPOCH_IMAGE}
+    ports:
+      - "4317:4317"
+    environment:
+      NODE_ENV: production
+      EPOCH_DB: /var/lib/epoch/epoch.sqlite
+      EPOCH_BACKUP_DIR: /var/lib/epoch-backups
+      EPOCH_SEED_DEMO: "0"
+      EPOCH_ADMIN_EMAIL: ${EPOCH_ADMIN_EMAIL:?set EPOCH_ADMIN_EMAIL}
+      EPOCH_ADMIN_PASSWORD: ${EPOCH_ADMIN_PASSWORD:?set EPOCH_ADMIN_PASSWORD}
+      EPOCH_BETA_CODE: ${EPOCH_BETA_CODE:-}
+      EPOCH_MAIL_KEY: ${EPOCH_MAIL_KEY:-}
+      EPOCH_MAIL_FROM: ${EPOCH_MAIL_FROM:-}
+      EPOCH_PUBLIC_URL: ${EPOCH_PUBLIC_URL:-}
+      EPOCH_LEGAL_NAME: ${EPOCH_LEGAL_NAME:-}
+      EPOCH_LEGAL_STREET: ${EPOCH_LEGAL_STREET:-}
+      EPOCH_LEGAL_POSTAL: ${EPOCH_LEGAL_POSTAL:-}
+      EPOCH_LEGAL_CITY: ${EPOCH_LEGAL_CITY:-}
+      EPOCH_LEGAL_COUNTRY: ${EPOCH_LEGAL_COUNTRY:-Germany}
+      EPOCH_LEGAL_EMAIL: ${EPOCH_LEGAL_EMAIL:-}
+    volumes:
+      - epoch-data:/var/lib/epoch
+      - epoch-backups:/var/lib/epoch-backups
+    restart: unless-stopped
+
+volumes:
+  epoch-data:
+  epoch-backups:
