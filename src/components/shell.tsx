@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Share2, Sprout, SunMedium, Trophy, Users } from "lucide-react"
+import { Share2, Sprout, SunMedium, TreePine, Trophy, Users } from "lucide-react"
 import { DaypartMark } from "@/components/daypart"
 import { LanguageToggle, useCopy } from "@/components/language-toggle"
 import { useHealth } from "@/components/health-provider"
@@ -14,6 +14,7 @@ const NAV = [
   { href: "/home/board", key: "board", icon: Trophy },
   { href: "/home/share", key: "share", icon: Share2 },
   { href: "/home/practice", key: "practice", icon: Sprout },
+  { href: "/home/grove", key: "grove", icon: TreePine },
 ] as const
 
 function active(pathname: string, href: string) {

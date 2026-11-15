@@ -167,6 +167,9 @@ export default function TodayPage() {
           <p className="mt-4 font-display text-3xl tabular leading-none">{rewardTotal}</p>
           <p className="mt-1 text-center text-xs tracking-[0.14em] text-muted-foreground uppercase">{pick(locale, "Reward points", "Belohnungspunkte")}</p>
           <p className="mt-2 max-w-48 text-center text-xs leading-5 text-muted-foreground">{pick(locale, "Each 150 points unlocks one more buddy. They do not move the score.", "Je 150 Punkte öffnen einen weiteren Buddy. Sie bewegen den Wert nicht.")}</p>
+          <Link href="/home/grove" className="mt-3 text-center text-xs text-primary hover:underline">
+            {pick(locale, "Collect this sun and water the tree.", "Sammle diese Sonne und gieße den Baum.")}
+          </Link>
         </article>
         <article className={`${panel} lg:col-span-4`}>
           <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">{pick(locale, "Today’s lever", "Der Hebel von heute")}</p>

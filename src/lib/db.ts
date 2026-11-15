@@ -5,17 +5,19 @@ import { hashPassword, hashSecret, newSecret, verifyPassword } from "./passwords
 import { recommendations } from "./interventions"
 import { acceptMeals, mealClockOffset } from "./meals"
 import { acceptWorkouts } from "./workouts"
-import { acceptRewards } from "./rewards"
+import { acceptRewards, summarizeRewards } from "./rewards"
 import { acceptPractice } from "./practice"
 import { assess, loggedDayCount } from "./score"
 import { recoveryLetter, sendLetter } from "./mail"
 import { cleanConsentAt } from "./legal"
 import { cleanLocale } from "./locale"
 import { cleanNudgePoints, freshen } from "./storage"
+import { creditPack, normalizeGrove, packById, pourWater, presentGrove, shopMode, takeSun, type GroveFile, type GroveView } from "./grove"
+import { createMolliePayment, paymentIdOk, readMolliePayment } from "./mollie"
 import type { Profile } from "./types"
 import { publicOrigin } from "./origin"
 import { HOUR_MS, takeRateLimit } from "./rate-limit"
-import { qall, qget, qrun, setSeeder, type SqlDb } from "./sql"
+import { qall, qget, qrun, qtx, setSeeder, type SqlDb } from "./sql"
 
 export { databasePath, getDb, resetDbForTests, usesFileDatabase, usesPostgres } from "./sql"
 
@@ -252,6 +254,7 @@ export async function saveOwnedProfile(
       serverNow,
       offset: clock,
     }),
+    grove: normalizeGrove(stored?.grove),
   }
   await qrun("UPDATE users SET profile_json = ?, name = ? WHERE id = ?", JSON.stringify(profile), profile.name, userId)
   const next = await rowById(userId)
@@ -442,4 +445,125 @@ export async function listBoard(): Promise<BoardRow[]> {
   }
   board.sort((a, b) => b.score - a.score || a.handle.localeCompare(b.handle))
   return board
+}
+
+function rewardPointsOf(profile: Profile): number {
+  return summarizeRewards(profile.rewards, new Date(), cleanNudgePoints(profile.nudgePoints)).total
+}
+
+function groveOf(profile: Profile): GroveView {
+  return presentGrove(normalizeGrove(profile.grove), rewardPointsOf(profile), shopMode())
+}
+
+async function mutateGrove(
+  userId: string,
+  change: (grove: GroveFile, profile: Profile) => { grove: GroveFile } | { error: string },
+): Promise<{ profile: Profile } | { error: string }> {
+  return qtx(async () => {
+    const row = await rowById(userId)
+    if (!row || row.role !== "member" || !row.profile_json) return { error: "Open your file before watering." }
+    const profile = freshen(JSON.parse(row.profile_json) as Profile)
+    const result = change(normalizeGrove(profile.grove), profile)
+    if ("error" in result) return result
+    const next = { ...profile, grove: normalizeGrove(result.grove) }
+    await qrun("UPDATE users SET profile_json = ? WHERE id = ?", JSON.stringify(next), userId)
+    return { profile: next }
+  })
+}
+
+async function memberGrove(userId: string): Promise<{ profile: Profile } | { error: string }> {
+  const row = await rowById(userId)
+  if (!row || row.role !== "member" || !row.profile_json) return { error: "Open your file before watering." }
+  return { profile: freshen(JSON.parse(row.profile_json) as Profile) }
+}
+
+const CLOSED_PAYMENT = new Set(["canceled", "expired", "failed"])
+
+async function settlePending(userId: string): Promise<{ profile: Profile } | { error: string }> {
+  const current = await memberGrove(userId)
+  if ("error" in current) return current
+  const pending = normalizeGrove(current.profile.grove).pending
+  if (!pending || shopMode() !== "live" || !paymentIdOk(pending)) return current
+  const remote = await readMolliePayment({ id: pending, key: process.env.MOLLIE_API_KEY ?? "" })
+  if (!remote) return current
+  if (remote.status === "paid") {
+    const pack = packById(remote.pack)
+    if (!pack || remote.userId !== userId || remote.currency !== "EUR" || remote.cents !== pack.cents) return current
+    return mutateGrove(userId, (grove) => {
+      if (grove.pending !== remote.id) return { grove }
+      return creditPack(grove, pack, remote.id)
+    })
+  }
+  if (CLOSED_PAYMENT.has(remote.status)) {
+    return mutateGrove(userId, (grove) => {
+      if (grove.pending !== remote.id) return { grove }
+      return { grove: { ...grove, pending: null } }
+    })
+  }
+  return current
+}
+
+export async function readGrove(userId: string): Promise<GroveView | { error: string }> {
+  const settled = await settlePending(userId)
+  if ("error" in settled) return settled
+  return groveOf(settled.profile)
+}
+
+export async function gatherGroveSun(userId: string): Promise<GroveView | { error: string }> {
+  const changed = await mutateGrove(userId, (grove, profile) => {
+    const taken = takeSun(grove, rewardPointsOf(profile))
+    if ("error" in taken) return taken
+    return { grove: taken.grove }
+  })
+  if ("error" in changed) return changed
+  return groveOf(changed.profile)
+}
+
+export async function pourGroveWater(userId: string): Promise<GroveView | { error: string }> {
+  const changed = await mutateGrove(userId, (grove) => pourWater(grove))
+  if ("error" in changed) return changed
+  return groveOf(changed.profile)
+}
+
+export async function buyGroveSun(userId: string, packId: string): Promise<GroveView | { error: string }> {
+  const pack = packById(packId)
+  if (!pack) return { error: "That pack is not in the shop." }
+  const mode = shopMode()
+  if (mode === "off") return { error: "Sun packs open when Mollie is connected." }
+  if (mode === "sample") {
+    const changed = await mutateGrove(userId, (grove) => creditPack(grove, pack, `sample-${pack.id}-${randomUUID()}`))
+    if ("error" in changed) return changed
+    return groveOf(changed.profile)
+  }
+  const settled = await settlePending(userId)
+  if ("error" in settled) return settled
+  const pending = normalizeGrove(settled.profile.grove).pending
+  if (pending && paymentIdOk(pending)) {
+    const remote = await readMolliePayment({ id: pending, key: process.env.MOLLIE_API_KEY ?? "" })
+    if (remote?.status === "paid") {
+      const again = await settlePending(userId)
+      if ("error" in again) return again
+      if (normalizeGrove(again.profile.grove).pending === pending) return { error: "That payment could not be recorded." }
+      return groveOf(again.profile)
+    }
+    if (remote?.status === "open" && remote.checkoutUrl) {
+      return presentGrove(normalizeGrove(settled.profile.grove), rewardPointsOf(settled.profile), mode, remote.checkoutUrl)
+    }
+    if (remote?.status === "open") return { error: "A checkout is already open." }
+  }
+  const origin = publicOrigin()
+  if (!origin) return { error: "The public address is not set, so checkout cannot return here." }
+  const created = await createMolliePayment({
+    pack,
+    redirectUrl: `${origin}/home/grove`,
+    userId,
+    key: process.env.MOLLIE_API_KEY ?? "",
+  })
+  if ("error" in created) return created
+  const changed = await mutateGrove(userId, (grove) => {
+    if (grove.pending && grove.pending !== created.id) return { error: "A checkout is already open." }
+    return { grove: { ...grove, pending: created.id } }
+  })
+  if ("error" in changed) return changed
+  return presentGrove(normalizeGrove(changed.profile.grove), rewardPointsOf(changed.profile), mode, created.checkoutUrl)
 }

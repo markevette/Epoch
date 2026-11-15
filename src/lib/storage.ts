@@ -7,6 +7,7 @@ import { normalizeWorkouts } from "./workouts"
 import { normalizeOffset, normalizeRewards } from "./rewards"
 import { cleanConsentAt } from "./legal"
 import { cleanLocale } from "./locale"
+import { normalizeGrove } from "./grove"
 import { normalizePractice } from "./practice"
 import { cleanSleepClock } from "./sleep-clock"
 import type { DayRecord, Inputs, Profile } from "./types"
@@ -94,6 +95,7 @@ export function freshen(profile: Profile, today = new Date()): Profile {
     locale: cleanLocale(profile.locale),
     practice: normalizePractice(profile.practice),
     sleepClock: cleanSleepClock(profile.sleepClock),
+    grove: normalizeGrove(profile.grove),
   }
   const leftover = next as Profile & { tier?: unknown; upgradeRequest?: unknown; priceOffer?: unknown }
   delete leftover.tier

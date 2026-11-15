@@ -17,6 +17,8 @@ describe("language", () => {
     assert.deepEqual(copy("en").claims, [...PUBLIC_CLAIMS])
     assert.equal(copy("de").nav.today, "Heute")
     assert.equal(copy("de").nav.practice, "Übung")
+    assert.equal(copy("de").nav.grove, "Hain")
+    assert.equal(copy("en").nav.grove, "Grove")
     assert.equal(cleanLocale("de"), "de")
     assert.equal(cleanLocale("fr"), null)
     assert.equal(localeFromCookieHeader("epoch_lang=de"), "de")

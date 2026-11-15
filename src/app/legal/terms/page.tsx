@@ -31,8 +31,8 @@ export default function TermsPage() {
         <p>
           {pick(
             locale,
-            "This is a closed beta. There is no paid plan and no store listing yet.",
-            "Das ist eine geschlossene Beta. Es gibt noch keinen bezahlten Plan und keinen Store-Eintrag.",
+            "This is a closed beta. There is no paid wellness plan and no store listing yet. Sun for the grove can be bought in packs. The price is in euros and includes tax. Sun is a game counter for watering a tree. It does not change the daily score. Sun arrives when the payment is confirmed, and paying asks for that delivery to start.",
+            "Das ist eine geschlossene Beta. Es gibt noch keinen bezahlten Wellness-Plan und keinen Store-Eintrag. Sonne für den Hain kann in Packs gekauft werden. Der Preis ist in Euro und enthält die Steuer. Sonne ist ein Spielzähler, um einen Baum zu gießen. Sie ändert den Tageswert nicht. Die Sonne kommt, wenn die Zahlung bestätigt ist, und das Bezahlen bittet darum, dass diese Lieferung beginnt.",
           )}
         </p>
         <p>

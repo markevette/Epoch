@@ -1,3 +1,4 @@
+import type { GroveFile } from "./grove"
 import type { MealDay } from "./meals"
 import type { PracticeLog } from "./practice"
 import type { SleepClock } from "./sleep-clock"
@@ -67,6 +68,8 @@ export type Profile = {
   practice?: PracticeLog
   /** Usual wake time and bedtime, HH:MM. Reminders use these. */
   sleepClock?: SleepClock | null
+  /** Sun, water poured, and sun-pack payment ids. The server writes this. */
+  grove?: GroveFile
 }
 
 export type DriverResult = {
