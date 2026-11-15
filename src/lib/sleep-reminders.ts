@@ -1,8 +1,11 @@
 import { tracks, type PracticeLog } from "./practice"
+import { GROVE_REMINDER_TAG, groveReminderAt, groveReminderNotification, type GroveNudge } from "./grove-reminders"
 import {
+  armNativeGroveReminder,
   armNativeReminders,
   currentReminderPermission,
   isNativeShell,
+  showNativeGroveReminder,
   showNativeReminder,
 } from "./native-reminders"
 import { reminderNotification, scheduledDoor, type SleepClock } from "./sleep-clock"
@@ -49,7 +52,7 @@ export async function armScheduledReminders(
   const registration = await navigator.serviceWorker.ready
   const pending = await registration.getNotifications({ includeTriggered: true } as { tag?: string })
   for (const note of pending) {
-    if (note.tag.startsWith("epoch-")) note.close()
+    if (note.tag.startsWith("epoch-") && note.tag !== GROVE_REMINDER_TAG) note.close()
   }
   for (const track of tracks()) {
     const door = scheduledDoor(clock, log, track, now)
@@ -64,6 +67,50 @@ export async function armScheduledReminders(
       showTrigger: new Trigger(door.when.getTime()),
     } as NotificationOptions)
   }
+}
+
+export async function showGroveReminder(locale: Locale, nudge: GroveNudge): Promise<void> {
+  if (isNativeShell()) {
+    await showNativeGroveReminder(locale, nudge)
+    return
+  }
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return
+  if (!("serviceWorker" in navigator)) return
+  const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" })
+  const note = groveReminderNotification(locale, nudge)
+  await registration.showNotification(note.title, {
+    body: note.body,
+    tag: note.tag,
+    lang: locale,
+    icon: "/icons/icon-192.png",
+    data: { url: note.url },
+  })
+}
+
+/** Hold the next grove reminder on this device. Pass null to clear one that is no longer due. */
+export async function armGroveReminder(nudge: GroveNudge | null, locale: Locale, now = new Date()): Promise<void> {
+  if (isNativeShell()) {
+    await armNativeGroveReminder(nudge, locale, now)
+    return
+  }
+  if (!canScheduleAhead() || Notification.permission !== "granted" || !("serviceWorker" in navigator)) return
+  const Trigger = (window as TriggerWindow).TimestampTrigger
+  if (!Trigger) return
+  const registration = await navigator.serviceWorker.ready
+  const pending = await registration.getNotifications({ includeTriggered: true } as { tag?: string })
+  for (const note of pending) {
+    if (note.tag === GROVE_REMINDER_TAG) note.close()
+  }
+  if (!nudge) return
+  const note = groveReminderNotification(locale, nudge)
+  await registration.showNotification(note.title, {
+    body: note.body,
+    tag: note.tag,
+    lang: locale,
+    icon: "/icons/icon-192.png",
+    data: { url: note.url },
+    showTrigger: new Trigger(groveReminderAt(now).getTime()),
+  } as NotificationOptions)
 }
 
 export { currentReminderPermission }

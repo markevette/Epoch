@@ -8,6 +8,7 @@ import { pick, translateError } from "@/lib/copy"
 import { formatEur } from "@/lib/format"
 import { appFetch } from "@/lib/browser-api"
 import type { GroveStage, GroveView } from "@/lib/grove"
+import { currentReminderPermission, requestReminderPermission, type ReminderPermission } from "@/lib/native-reminders"
 
 const STAGE_NAME: Record<GroveStage, { en: string; de: string }> = {
   seed: { en: "Seed", de: "Samen" },
@@ -45,10 +46,15 @@ export default function GrovePage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [splash, setSplash] = useState(false)
+  const [permission, setPermission] = useState<ReminderPermission | null>(null)
 
   const apply = useCallback((data: GroveView) => {
     setView(data)
     setError(null)
+  }, [])
+
+  useEffect(() => {
+    void currentReminderPermission().then(setPermission)
   }, [])
 
   useEffect(() => {
@@ -186,6 +192,34 @@ export default function GrovePage() {
           </ol>
         </section>
       ) : null}
+
+      <section className="mt-4 rounded-2xl border border-border bg-card p-5">
+        <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">{pick(locale, "Reminder", "Erinnerung")}</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {pick(
+            locale,
+            "At 18:00 a reminder can ask you to collect sun or to pour, when there is something to do. It is the same kind of reminder as the practice doors. Chrome and the installed app can show it while Epoch is closed.",
+            "Um 18:00 kann eine Erinnerung zum Sammeln oder Gießen kommen, wenn etwas zu tun ist. Es ist dieselbe Art Erinnerung wie bei den Übungstüren. Chrome und die installierte App können sie zeigen, während Epoch geschlossen ist.",
+          )}
+        </p>
+        {permission === "default" ? (
+          <button
+            type="button"
+            className="mt-3 rounded-full bg-primary px-4 py-2 text-sm text-primary-foreground"
+            onClick={() => {
+              void requestReminderPermission().then((next) => {
+                setPermission(next)
+                if (next === "granted") window.dispatchEvent(new Event("epoch-reminders"))
+              })
+            }}
+          >
+            {pick(locale, "Allow reminders", "Erinnerungen erlauben")}
+          </button>
+        ) : null}
+        {permission === "granted" ? <p className="mt-3 text-sm">{pick(locale, "Reminders are on for this device.", "Erinnerungen sind auf diesem Gerät an.")}</p> : null}
+        {permission === "denied" ? <p className="mt-3 text-sm">{pick(locale, "Reminders are off for this device.", "Erinnerungen sind auf diesem Gerät aus.")}</p> : null}
+        {permission === "unsupported" ? <p className="mt-3 text-sm">{pick(locale, "This browser cannot hold a reminder.", "Dieser Browser kann keine Erinnerung halten.")}</p> : null}
+      </section>
 
       <section className="mt-6">
         <h2 className="font-display text-2xl">{pick(locale, "Buy sun", "Sonne kaufen")}</h2>
