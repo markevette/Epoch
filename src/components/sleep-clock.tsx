@@ -7,6 +7,8 @@ import { useHealth } from "@/components/health-provider"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { pick } from "@/lib/copy"
 import { isoDate } from "@/lib/format"
+import { normalizeGrove, presentGrove } from "@/lib/grove"
+import { groveNudge, groveReminderDue } from "@/lib/grove-reminders"
 import {
   currentReminderPermission,
   onNativeAppResume,
@@ -15,8 +17,9 @@ import {
   type ReminderPermission,
 } from "@/lib/native-reminders"
 import { lessonById, presentToday } from "@/lib/practice"
+import { summarizeRewards } from "@/lib/rewards"
 import { cleanSleepClock, dueReminder, minutesNow, parseClock, reminderNotification } from "@/lib/sleep-clock"
-import { armScheduledReminders, showReminder } from "@/lib/sleep-reminders"
+import { armGroveReminder, armScheduledReminders, showGroveReminder, showReminder } from "@/lib/sleep-reminders"
 
 function statusLine(
   locale: "en" | "de",
@@ -134,6 +137,10 @@ export function SleepReminderHost() {
     if (!("serviceWorker" in navigator)) return
     const onMessage = (event: MessageEvent) => {
       const url = event.data?.type === "epoch-open" ? event.data.url : null
+      if (url === "/home/grove") {
+        router.push(url)
+        return
+      }
       if (typeof url !== "string" || !url.startsWith("/home/practice/")) return
       const id = url.slice("/home/practice/".length)
       if (!lessonById(id)) return
@@ -204,6 +211,36 @@ export function SleepReminderHost() {
       document.removeEventListener("visibilitychange", onVisible)
     }
   }, [profile?.sleepClock, profile?.practice, locale])
+
+  useEffect(() => {
+    if (!profile) return
+    const points = summarizeRewards(profile.rewards, new Date(), profile.nudgePoints ?? 0).total
+    const view = presentGrove(normalizeGrove(profile.grove), points, "off")
+    const nudge = groveNudge(view.pendingSun, view.sun, view.pourCost)
+
+    async function arm() {
+      const permission = await currentReminderPermission()
+      if (permission !== "granted") return
+      await armGroveReminder(nudge, locale)
+      if (!groveReminderDue(nudge, minutesNow())) return
+      const key = `${isoDate(new Date())}:${nudge}`
+      if (window.localStorage.getItem("epoch.grove.notified") === key) return
+      window.localStorage.setItem("epoch.grove.notified", key)
+      if (nudge) await showGroveReminder(locale, nudge)
+    }
+
+    void arm()
+    const onArm = () => void arm()
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void arm()
+    }
+    window.addEventListener("epoch-reminders", onArm)
+    document.addEventListener("visibilitychange", onVisible)
+    return () => {
+      window.removeEventListener("epoch-reminders", onArm)
+      document.removeEventListener("visibilitychange", onVisible)
+    }
+  }, [profile, locale])
 
   if (!due) return null
   const dueId = due

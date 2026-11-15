@@ -298,3 +298,44 @@ html[data-install-banner] [data-chrome="member"] {
     padding-bottom: 0;
   }
 }
+
+.grove-lawn {
+  background-image: repeating-linear-gradient(
+    90deg,
+    oklch(0.72 0.11 145) 0 52px,
+    oklch(0.64 0.1 150) 52px 104px
+  );
+}
+
+[data-daypart="night"] .grove-lawn {
+  filter: saturate(0.85) brightness(0.72);
+}
+
+.grove-sun {
+  animation: grove-sun 2.6s ease-in-out infinite;
+}
+
+.grove-tree-sway {
+  transform-origin: 110px 200px;
+  animation: grove-sway 4.8s ease-in-out infinite;
+}
+
+.grove-splash {
+  transform-origin: center;
+  animation: grove-splash 0.7s ease-out forwards;
+}
+
+@keyframes grove-sun {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes grove-sway {
+  0%, 100% { transform: rotate(-1.4deg); }
+  50% { transform: rotate(1.4deg); }
+}
+
+@keyframes grove-splash {
+  0% { opacity: 0.85; transform: translateY(10px) scale(0.7); }
+  100% { opacity: 0; transform: translateY(-26px) scale(1.15); }
+}

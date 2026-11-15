@@ -10,7 +10,7 @@ import type { MealName } from "./meals"
 import type { Sex } from "./types"
 
 const en = {
-  nav: { today: "Today", buddies: "Buddies", board: "Board", share: "Share", practice: "Practice", signOut: "Sign out", signIn: "Sign in" },
+  nav: { today: "Today", buddies: "Buddies", board: "Board", share: "Share", practice: "Practice", grove: "Grove", signOut: "Sign out", signIn: "Sign in" },
   home: {
     kicker: "Closed beta · a daily score, practice, and buddies",
     title: "The next habit, from the day you just logged.",
@@ -53,7 +53,7 @@ const en = {
 }
 
 const de = {
-  nav: { today: "Heute", buddies: "Buddies", board: "Tafel", share: "Teilen", practice: "Übung", signOut: "Abmelden", signIn: "Anmelden" },
+  nav: { today: "Heute", buddies: "Buddies", board: "Tafel", share: "Teilen", practice: "Übung", grove: "Hain", signOut: "Abmelden", signIn: "Anmelden" },
   home: {
     kicker: "Geschlossene Beta · ein Tageswert, Übung und Buddies",
     title: "Die nächste Gewohnheit, aus dem Tag, den du gerade erfasst hast.",
@@ -473,6 +473,20 @@ export function translateError(locale: Locale, message: string): string {
     "That picture is too large.": "Dieses Bild ist zu groß.",
     "That picture could not be read.": "Dieses Bild ließ sich nicht lesen.",
     "Wait a minute and try again.": "Warte eine Minute und versuche es erneut.",
+    "Open your file before watering.": "Öffne deine Akte, bevor du gießt.",
+    "No sun to collect.": "Keine Sonne zum Einsammeln.",
+    "Not enough sun to pour.": "Zu wenig Sonne zum Gießen.",
+    "This tree cannot take more water.": "Dieser Baum kann kein Wasser mehr nehmen.",
+    "That pack is not in the shop.": "Dieses Pack liegt nicht im Laden.",
+    "Sun packs open when Mollie is connected.": "Sonnenpacks öffnen, wenn Mollie verbunden ist.",
+    "The shop could not open checkout.": "Der Laden konnte die Kasse nicht öffnen.",
+    "The public address is not set, so checkout cannot return here.": "Die öffentliche Adresse fehlt, also kann die Kasse nicht hierher zurück.",
+    "A checkout is already open.": "Eine Kasse ist schon offen.",
+    "That payment could not be recorded.": "Diese Zahlung ließ sich nicht vermerken.",
+    "The shop ledger for this file is full.": "Das Ladenbuch dieser Akte ist voll.",
+    "The grove could not be opened.": "Der Hain ließ sich nicht öffnen.",
+    "The grove request was incomplete.": "Die Anfrage an den Hain war unvollständig.",
+    "Sign in again.": "Melde dich erneut an.",
   }
   return known[message] ?? translateReason(locale, message)
 }

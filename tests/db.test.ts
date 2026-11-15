@@ -6,10 +6,13 @@ import { describe, it } from "node:test"
 import { DEMO_ADMIN_EMAIL as ADMIN_EMAIL, DEMO_ADMIN_PASSWORD as ADMIN_PASSWORD, DEMO_MEMBER_EMAIL as MEMBER_EMAIL, DEMO_MEMBER_PASSWORD as MEMBER_PASSWORD } from "./demo-env"
 import {
   accountForToken,
+  buyGroveSun,
   deleteOwnedAccount,
+  gatherGroveSun,
   listAccess,
   openMemberFile,
   openSession,
+  pourGroveWater,
   registerMember,
   resetDbForTests,
   saveOwnedProfile,
@@ -18,7 +21,8 @@ import { hashPassword, verifyPassword } from "../src/lib/passwords"
 import { averyProfile, createProfile } from "../src/lib/personas"
 import { foodDay, mealsDue } from "../src/lib/meals"
 import type { WorkoutDay } from "../src/lib/workouts"
-import { rewardWindow } from "../src/lib/rewards"
+import { rewardWindow, summarizeRewards } from "../src/lib/rewards"
+import { shopMode } from "../src/lib/grove"
 
 process.env.EPOCH_DB = path.join(mkdtempSync(path.join(tmpdir(), "epoch-")), "test.sqlite")
 resetDbForTests()
@@ -175,5 +179,48 @@ describe("database", () => {
     assert.equal(saved?.profile?.healthConsentAt?.startsWith("2099"), false)
     const wiped = await saveOwnedProfile(authed.id, { ...saved!.profile!, healthConsentAt: null })
     assert.equal(wiped?.profile?.healthConsentAt, saved?.profile?.healthConsentAt)
+  })
+
+  it("ignores a forged sun balance and only collects earned points", async () => {
+    const opened = await registerMember({ email: "grove.member@example.com", password: "grove-pass", name: "Grove Member" })
+    assert.equal("token" in opened, true)
+    if (!("token" in opened)) return
+    const authed = (await accountForToken(opened.token))!
+    const window = rewardWindow(new Date())
+    const note = window.slot === "night" ? "Held the evening." : window.slot === "day" ? "done" : ""
+    const planted = { ...averyProfile(), name: "Grove Member", handle: "grovemember", demo: false }
+    const saved = await saveOwnedProfile(authed.id, {
+      ...planted,
+      grove: { sun: 9000, watered: 40, gathered: 0, credited: ["tr_forged"], pending: null },
+      rewardClockOffset: new Date().getTimezoneOffset(),
+      history: planted.history.map((day) => (day.date === window.date ? { ...day, source: "logged" as const } : day)),
+      rewards: [{ date: window.date, slot: window.slot, at: new Date().toISOString(), note, bonus: 99 }],
+    })
+    assert.equal(saved?.profile?.grove?.sun, 0)
+    assert.equal(saved?.profile?.grove?.watered, 0)
+    assert.deepEqual(saved?.profile?.grove?.credited, [])
+    const earned = summarizeRewards(saved!.profile!.rewards, new Date(), 0).total
+    assert.ok(earned >= 1)
+    let sun = 0
+    for (let turn = 0; turn < 8; turn += 1) {
+      const view = await gatherGroveSun(authed.id)
+      if ("error" in view) break
+      sun = view.sun
+    }
+    assert.equal(sun, earned)
+    const dry = await pourGroveWater(authed.id)
+    if (sun >= 4) {
+      assert.ok(!("error" in dry))
+      if (!("error" in dry)) assert.equal(dry.watered, 1)
+    } else {
+      assert.equal("error" in dry, true)
+    }
+    const kept = await saveOwnedProfile(authed.id, { ...saved!.profile!, grove: { sun: 1, watered: 0, gathered: 0, credited: [], pending: null } })
+    assert.equal(kept?.profile?.grove?.sun, sun >= 4 ? sun - 4 : sun)
+    if (shopMode() === "sample") {
+      const bought = await buyGroveSun(authed.id, "handful")
+      assert.ok(!("error" in bought))
+      if (!("error" in bought)) assert.equal(bought.sun, (kept?.profile?.grove?.sun ?? 0) + 20)
+    }
   })
 })
