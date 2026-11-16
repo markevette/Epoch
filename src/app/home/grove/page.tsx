@@ -7,6 +7,7 @@ import { useHealth } from "@/components/health-provider"
 import { pick, translateError } from "@/lib/copy"
 import { formatEur } from "@/lib/format"
 import { appFetch } from "@/lib/browser-api"
+import { raiseCheer } from "@/lib/cheer"
 import type { GroveStage, GroveView } from "@/lib/grove"
 import { currentReminderPermission, requestReminderPermission, type ReminderPermission } from "@/lib/native-reminders"
 
@@ -93,7 +94,9 @@ export default function GrovePage() {
       if (body.action === "water") {
         setSplash(true)
         window.setTimeout(() => setSplash(false), 700)
+        raiseCheer(view && data.stage !== view.stage ? "level" : "pour")
       }
+      if (body.action === "gather") raiseCheer("sun")
       if (data.checkoutUrl) window.location.assign(data.checkoutUrl)
       else await reload()
     } catch {

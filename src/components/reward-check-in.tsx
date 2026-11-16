@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useHealth } from "@/components/health-provider"
+import { raiseCheer } from "@/lib/cheer"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { pick } from "@/lib/copy"
@@ -58,7 +59,10 @@ export function RewardCheckIn({
     if (pending) return
     setPending(true)
     const landed = await onClaim(value)
-    if (landed) setNote("")
+    if (landed) {
+      setNote("")
+      raiseCheer("check-in")
+    }
     setPending(false)
   }
 

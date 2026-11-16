@@ -13,6 +13,9 @@ export type ShareCard = {
   burnedLine: string | null
   sentences: string[]
   photo?: SharePhoto | null
+  /** Last 7 daily scores, the same week a buddy can see. Omit to leave them off the card. */
+  week?: number[] | null
+  weekLabel?: string
 }
 
 export type PairCard = {
@@ -82,6 +85,14 @@ function rule(ctx: ShareCanvas, y: number, right: number) {
   ctx.fillStyle = INK
 }
 
+export function weekBars(scores: number[]): number[] {
+  if (scores.length === 0) return []
+  const min = Math.min(...scores)
+  const max = Math.max(...scores)
+  const span = Math.max(1, max - min)
+  return scores.map((score) => 0.35 + ((score - min) / span) * 0.65)
+}
+
 function fittedPhoto(photo: { width: number; height: number }): { width: number; height: number; x: number; y: number } {
   const maxWidth = 216
   const maxHeight = 264
@@ -118,6 +129,21 @@ export function paintShareCard(
   rule(ctx, 440, textRight)
   let y = 476
   const lineWidth = photo && photoImage ? 36 : 48
+  const week = (card.week ?? []).filter((score) => Number.isFinite(score)).slice(0, 7)
+  if (week.length > 0) {
+    ctx.font = "500 20px Geist, system-ui, sans-serif"
+    ctx.fillText(card.weekLabel || "Last 7 daily scores", PAD, y)
+    y += 36
+    const bars = weekBars(week)
+    bars.forEach((height, index) => {
+      const barHeight = Math.round(48 * height)
+      ctx.fillRect(PAD + index * 28, y + (48 - barHeight), 16, barHeight)
+    })
+    y += 60
+    ctx.font = "400 18px Geist, system-ui, sans-serif"
+    ctx.fillText(week.join("  "), PAD, y)
+    y += 40
+  }
   if (card.morningsLine) {
     ctx.font = "500 22px Geist, system-ui, sans-serif"
     ctx.fillText(card.morningsLine, PAD, y)

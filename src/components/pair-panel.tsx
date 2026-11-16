@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button"
 import { formatLongDate } from "@/lib/format"
 import { useHealth } from "@/components/health-provider"
 import { appFetch } from "@/lib/browser-api"
-import { copy, pick, translateError } from "@/lib/copy"
+import { buddyWeekPath } from "@/lib/app-paths"
+import { copy, pick, storedNudge, translateError } from "@/lib/copy"
+import { showBuddyLine } from "@/lib/sleep-reminders"
 import { morningsTogetherLabel, pairCardHandles, type PairMark, type PairSnapshot } from "@/lib/pairs"
 import { paintPairCard, PAIR_CARD_FILENAME, pngFileFromPaint } from "@/lib/share-card"
 
@@ -35,6 +37,33 @@ function firstName(name: string): string {
   return name.trim().split(/\s+/)[0] || "Your pair"
 }
 
+function noticeLines(pairs: ActivePair[], locale: "en" | "de") {
+  const seen = new Set((window.localStorage.getItem("epoch.line.seen") ?? "").split(",").filter(Boolean))
+  let changed = false
+  for (const pair of pairs) {
+    const line = pair.incomingLine
+    if (!line) continue
+    const key = `${pair.id}:${line.sentOn}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    changed = true
+    void showBuddyLine(locale, firstName(line.name), line.text, buddyWeekPath(pair.id))
+  }
+  if (changed) window.localStorage.setItem("epoch.line.seen", [...seen].slice(-40).join(","))
+}
+
+function IncomingLine({ pair }: { pair: ActivePair }) {
+  const { locale } = useHealth()
+  const line = pair.incomingLine
+  if (!line) return null
+  const partner = firstName(line.name)
+  return (
+    <p className="mt-3 rounded-xl bg-moss px-3 py-3 text-sm leading-6">
+      {pick(locale, `${partner} wrote:`, `${partner} schrieb:`)} {storedNudge(locale, line.text)}
+    </p>
+  )
+}
+
 export function PairPanel({ detail = false }: { detail?: boolean }) {
   const [view, setView] = useState<Board | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -52,10 +81,16 @@ export function PairPanel({ detail = false }: { detail?: boolean }) {
     }
     setError(null)
     setView(body)
+    noticeLines(body.pairs, locale)
   }, [locale])
 
   useEffect(() => {
     void load()
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load()
+    }
+    document.addEventListener("visibilitychange", onVisible)
+    return () => document.removeEventListener("visibilitychange", onVisible)
   }, [load])
 
   async function act(action: string, pairId: string, extra?: { on?: boolean }) {
@@ -157,6 +192,7 @@ function CompactPair({ pair, pending, onAct }: { pair: ActivePair; pending: stri
       </div>
       <p className="mt-2 text-sm">{morningsTogetherLabel(pair.streak, locale)} {pick(locale, "with", "mit")} {partner}</p>
       <p className="mt-1 text-sm leading-6 text-muted-foreground">{pair.line}</p>
+      <IncomingLine pair={pair} />
       <Link href={`/home/buddies/${pair.id}`} className="mt-3 inline-flex text-sm text-primary">
         {pick(locale, `${partner}’s week`, `Woche von ${partner}`)}
       </Link>
@@ -254,6 +290,7 @@ function FullPair({
         <p className="text-sm text-muted-foreground">@{pair.partnerHandle}</p>
       </div>
       <p className="mt-3 text-sm leading-6">{pair.line}</p>
+      <IncomingLine pair={pair} />
       {pair.longest > pair.streak ? <p className="mt-1 text-sm text-muted-foreground">{pick(locale, `Longest together: ${pair.longest}.`, `Längste Folge: ${pair.longest}.`)}</p> : null}
       <ul className="mt-4 grid gap-2 sm:grid-cols-2">
         <li className="rounded-xl border border-border px-3 py-3 text-sm">

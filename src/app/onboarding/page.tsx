@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { pick, sexText } from "@/lib/copy"
 import { isoDate, toHandle } from "@/lib/format"
+import { INTRO_PENDING } from "@/lib/intro"
 import { currentReminderPermission, requestReminderPermission, type ReminderPermission } from "@/lib/native-reminders"
 import { STARTER_INPUTS, createProfile } from "@/lib/personas"
 import { todayQuest } from "@/lib/practice"
@@ -86,6 +87,7 @@ export default function OnboardingPage() {
       setOpening(false)
       return
     }
+    window.sessionStorage.setItem(INTRO_PENDING, "1")
     window.dispatchEvent(new Event("epoch-reminders"))
     const quest = todayQuest({ completions: [] }, isoDate(new Date()))
     router.push(quest ? `/home/practice/${quest.lesson.id}` : "/home")

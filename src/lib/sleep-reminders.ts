@@ -1,10 +1,13 @@
 import { tracks, type PracticeLog } from "./practice"
+import { isBuddyWeekPath } from "./app-paths"
+import { storedNudge } from "./copy"
 import { GROVE_REMINDER_TAG, groveReminderAt, groveReminderNotification, type GroveNudge } from "./grove-reminders"
 import {
   armNativeGroveReminder,
   armNativeReminders,
   currentReminderPermission,
   isNativeShell,
+  showNativeBuddyLine,
   showNativeGroveReminder,
   showNativeReminder,
 } from "./native-reminders"
@@ -52,7 +55,7 @@ export async function armScheduledReminders(
   const registration = await navigator.serviceWorker.ready
   const pending = await registration.getNotifications({ includeTriggered: true } as { tag?: string })
   for (const note of pending) {
-    if (note.tag.startsWith("epoch-") && note.tag !== GROVE_REMINDER_TAG) note.close()
+    if (note.tag.startsWith("epoch-") && note.tag !== GROVE_REMINDER_TAG && !note.tag.startsWith("epoch-buddy")) note.close()
   }
   for (const track of tracks()) {
     const door = scheduledDoor(clock, log, track, now)
@@ -111,6 +114,26 @@ export async function armGroveReminder(nudge: GroveNudge | null, locale: Locale,
     data: { url: note.url },
     showTrigger: new Trigger(groveReminderAt(now).getTime()),
   } as NotificationOptions)
+}
+
+export async function showBuddyLine(locale: Locale, name: string, english: string, url: string): Promise<void> {
+  if (!isBuddyWeekPath(url)) return
+  const title = locale === "de" ? `${name} schrieb` : `${name} wrote`
+  const body = storedNudge(locale, english)
+  if (isNativeShell()) {
+    await showNativeBuddyLine(title, body, url)
+    return
+  }
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return
+  if (!("serviceWorker" in navigator)) return
+  const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" })
+  await registration.showNotification(title, {
+    body,
+    tag: "epoch-buddy-line",
+    lang: locale,
+    icon: "/icons/icon-192.png",
+    data: { url },
+  })
 }
 
 export { currentReminderPermission }

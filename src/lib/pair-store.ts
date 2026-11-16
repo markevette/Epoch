@@ -215,6 +215,7 @@ async function snapshotOf(row: PairRow, userId: string, offset: number | null, n
     canNudge: view.canNudge,
     nudged: view.nudged,
     partnerNudged: view.partnerNudged,
+    incomingLine: await incomingLine(row.id, userId, partner.name),
     startedOn: row.started_on,
     handleA: evaluated.fileA.handle,
     handleB: evaluated.fileB.handle,
@@ -610,6 +611,18 @@ async function weekForPair(userId: string, pairId: string, offset: number | null
       yourPoints: summarizeRewards(you.rewards, today).total + cleanNudgePoints(you.nudgePoints),
     },
   }
+}
+
+async function incomingLine(pairId: string, userId: string, partnerName: string): Promise<{ text: string; sentOn: string; name: string } | null> {
+  const row = await qget<{ message: string; sent_on: string }>(
+    `SELECT message, sent_on FROM score_nudges
+     WHERE pair_id = ? AND to_user = ?
+     ORDER BY created_at DESC LIMIT 1`,
+    pairId,
+    userId,
+  )
+  if (!row?.message || !row.sent_on) return null
+  return { text: row.message, sentOn: row.sent_on, name: partnerName }
 }
 
 export async function buddyWeek(userId: string, pairId: string, offset: number | null, now = new Date()): Promise<BuddyWeek | { error: string }> {

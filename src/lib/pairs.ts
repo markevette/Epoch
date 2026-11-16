@@ -49,6 +49,7 @@ export type PairSnapshot =
       canNudge: boolean
       nudged: boolean
       partnerNudged: boolean
+      incomingLine: { text: string; sentOn: string; name: string } | null
       startedOn: string
       handleA: string
       handleB: string

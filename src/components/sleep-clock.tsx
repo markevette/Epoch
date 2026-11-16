@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { useHealth } from "@/components/health-provider"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { pick } from "@/lib/copy"
+import { isBuddyWeekPath } from "@/lib/app-paths"
 import { isoDate } from "@/lib/format"
 import { normalizeGrove, presentGrove } from "@/lib/grove"
 import { groveNudge, groveReminderDue } from "@/lib/grove-reminders"
@@ -137,7 +138,7 @@ export function SleepReminderHost() {
     if (!("serviceWorker" in navigator)) return
     const onMessage = (event: MessageEvent) => {
       const url = event.data?.type === "epoch-open" ? event.data.url : null
-      if (url === "/home/grove") {
+      if (url === "/home/grove" || (typeof url === "string" && isBuddyWeekPath(url))) {
         router.push(url)
         return
       }

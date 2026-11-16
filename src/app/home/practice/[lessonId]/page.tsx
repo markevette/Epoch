@@ -6,6 +6,7 @@ import { useParams } from "next/navigation"
 import { Disclaimer } from "@/components/disclaimer"
 import { useHealth } from "@/components/health-provider"
 import { Button } from "@/components/ui/button"
+import { raiseCheer } from "@/lib/cheer"
 import { pick } from "@/lib/copy"
 import { isoDate } from "@/lib/format"
 import {
@@ -58,7 +59,8 @@ export default function LessonPage() {
   async function finish() {
     if (pending) return
     setPending(true)
-    await completeLesson(lessonId)
+    const landed = await completeLesson(lessonId)
+    if (landed) raiseCheer("task")
     setPending(false)
   }
 

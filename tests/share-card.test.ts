@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { PUBLIC_CLAIMS } from "../src/lib/claims"
-import { paintPairCard, paintShareCard, type ShareCanvas } from "../src/lib/share-card"
+import { paintPairCard, paintShareCard, weekBars, type ShareCanvas } from "../src/lib/share-card"
 
 function recordPaint(paint: (ctx: ShareCanvas) => void) {
   const texts: string[] = []
@@ -121,6 +121,39 @@ describe("share card", () => {
     assert.ok(text.includes("12"))
     assert.ok(text.includes("mornings together"))
     assert.equal(text.includes("biological"), false)
+  })
+
+  it("keeps the weekly scores off until the card asks for them", async () => {
+    const hidden = recordPaint((ctx) =>
+      paintShareCard(ctx, {
+        name: "Avery Chen",
+        date: "Tuesday, 10 November",
+        score: "75",
+        confidence: "Growing file · 60% confidence",
+        morningsLine: null,
+        burnedLine: null,
+        sentences: ["Avery's daily score is 75."],
+      }),
+    )
+    assert.equal(hidden.text.includes("Last 7 daily scores"), false)
+    const shown = recordPaint((ctx) =>
+      paintShareCard(ctx, {
+        name: "Avery Chen",
+        date: "Tuesday, 10 November",
+        score: "75",
+        confidence: "Growing file · 60% confidence",
+        morningsLine: null,
+        burnedLine: null,
+        sentences: ["Avery's daily score is 75."],
+        week: [70, 72, 74],
+        weekLabel: "Last 7 daily scores",
+      }),
+    )
+    assert.ok(shown.text.includes("Last 7 daily scores"))
+    assert.ok(shown.text.includes("70  72  74"))
+    const bars = weekBars([70, 72, 74])
+    assert.equal(bars.length, 3)
+    assert.ok(bars[2]! > bars[0]!)
   })
 
   it("prints the date above the daily score", async () => {

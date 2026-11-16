@@ -1,10 +1,13 @@
 import { App } from "@capacitor/app"
 import { Capacitor } from "@capacitor/core"
 import { LocalNotifications, type LocalNotificationSchema } from "@capacitor/local-notifications"
+import { isBuddyWeekPath } from "./app-paths"
 import { GROVE_NATIVE_ID, groveReminderAt, groveReminderNotification, type GroveNudge } from "./grove-reminders"
 import { lessonById, tracks, type PracticeLog, type PracticeTrack } from "./practice"
 import { reminderNotification, scheduledDoor, type SleepClock } from "./sleep-clock"
 import type { Locale } from "./locale"
+
+const BUDDY_NATIVE_ID = 106
 
 const NATIVE_ID: Record<PracticeTrack, number> = {
   sleep: 101,
@@ -116,6 +119,23 @@ export async function showNativeGroveReminder(locale: Locale, nudge: GroveNudge)
   })
 }
 
+export async function showNativeBuddyLine(title: string, body: string, url: string): Promise<void> {
+  if (!isNativeShell() || !isBuddyWeekPath(url)) return
+  const { display } = await LocalNotifications.checkPermissions()
+  if (display !== "granted") return
+  await LocalNotifications.schedule({
+    notifications: [
+      {
+        id: BUDDY_NATIVE_ID,
+        title,
+        body,
+        extra: { url },
+        schedule: { at: new Date(Date.now() + 500), allowWhileIdle: true },
+      },
+    ],
+  })
+}
+
 export async function showNativeReminder(locale: Locale, id: string, today = "2000-01-01"): Promise<void> {
   if (!isNativeShell()) return
   const { display } = await LocalNotifications.checkPermissions()
@@ -141,7 +161,7 @@ export function onNativeReminderOpen(open: (url: string) => void): () => void {
   let handle: { remove: () => Promise<void> } | null = null
   void LocalNotifications.addListener("localNotificationActionPerformed", (event) => {
     const url = event.notification.extra?.url
-    if (typeof url === "string" && (url === "/home/grove" || url.startsWith("/home/practice/"))) open(url)
+    if (typeof url === "string" && (url === "/home/grove" || url.startsWith("/home/practice/") || isBuddyWeekPath(url))) open(url)
   }).then((listener) => {
     handle = listener
   })
