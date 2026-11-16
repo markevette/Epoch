@@ -45,7 +45,7 @@ export function epochManifest(origin: string): MetadataRoute.Manifest {
     short_name: "Epoch",
     description: "A daily longevity score, a biological-age estimate, and the next action that moves them.",
     id: "/",
-    start_url: "/",
+    start_url: "/home",
     scope: "/",
     display: "standalone",
     display_override: ["standalone"],

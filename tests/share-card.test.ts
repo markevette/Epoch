@@ -8,6 +8,7 @@ function recordPaint(paint: (ctx: ShareCanvas) => void) {
   const images: unknown[] = []
   const rects: { x: number; y: number; w: number; h: number }[] = []
   const placed: { text: string; x: number; y: number }[] = []
+  let arcs = 0
   const ctx: ShareCanvas = {
     fillStyle: "",
     strokeStyle: "",
@@ -20,6 +21,11 @@ function recordPaint(paint: (ctx: ShareCanvas) => void) {
     beginPath() {},
     moveTo() {},
     lineTo() {},
+    arc() {
+      arcs += 1
+    },
+    ellipse() {},
+    fill() {},
     stroke() {},
     fillText(text, x, y) {
       texts.push(text)
@@ -30,7 +36,7 @@ function recordPaint(paint: (ctx: ShareCanvas) => void) {
     },
   }
   paint(ctx)
-  return { text: texts.join(" "), texts, images, rects, placed }
+  return { text: texts.join(" "), texts, images, rects, placed, arcs }
 }
 
 describe("share card", () => {
@@ -193,5 +199,47 @@ describe("share card", () => {
     assert.ok(dateAt >= 0)
     assert.ok(scoreAt > dateAt)
     assert.ok(labelAt > scoreAt)
+  })
+
+  it("draws a grove sticker only when the card carries the current stage", async () => {
+    const plain = recordPaint((ctx) =>
+      paintShareCard(ctx, {
+        name: "Avery Chen",
+        date: "Tuesday, 10 November",
+        score: "75",
+        confidence: "Growing file · 60% confidence",
+        morningsLine: null,
+        burnedLine: null,
+        sentences: ["Avery's daily score is 75."],
+      }),
+    )
+    assert.equal(plain.arcs, 0)
+    const seeded = recordPaint((ctx) =>
+      paintShareCard(ctx, {
+        name: "Avery Chen",
+        date: "Tuesday, 10 November",
+        score: "75",
+        confidence: "Growing file · 60% confidence",
+        morningsLine: null,
+        burnedLine: null,
+        sentences: ["Avery's daily score is 75."],
+        groveStage: "seed",
+      }),
+    )
+    const canopy = recordPaint((ctx) =>
+      paintShareCard(ctx, {
+        name: "Avery Chen",
+        date: "Tuesday, 10 November",
+        score: "75",
+        confidence: "Growing file · 60% confidence",
+        morningsLine: null,
+        burnedLine: null,
+        sentences: ["Avery's daily score is 75."],
+        groveStage: "canopy",
+        groveBlossoms: 3,
+      }),
+    )
+    assert.ok(seeded.arcs > 0)
+    assert.ok(canopy.arcs > seeded.arcs)
   })
 })

@@ -16,6 +16,9 @@ export type ShareCard = {
   /** Last 7 daily scores, the same week a buddy can see. Omit to leave them off the card. */
   week?: number[] | null
   weekLabel?: string
+  /** Current grove stage, drawn as a small sticker. Omit to leave it off. */
+  groveStage?: "seed" | "sprout" | "sapling" | "young" | "tree" | "canopy" | null
+  groveBlossoms?: number
 }
 
 export type PairCard = {
@@ -36,6 +39,9 @@ export type ShareCanvas = {
   beginPath: () => void
   moveTo: (x: number, y: number) => void
   lineTo: (x: number, y: number) => void
+  arc: (x: number, y: number, r: number, start: number, end: number) => void
+  ellipse: (x: number, y: number, rx: number, ry: number, rotation: number, start: number, end: number) => void
+  fill: () => void
   stroke: () => void
   fillText: (text: string, x: number, y: number) => void
   measureText?: (text: string) => { width: number }
@@ -51,6 +57,84 @@ const INK = "#293d33"
 const PAPER = "#f4efe6"
 const RULE = "#bfc7bd"
 const PAD = 80
+const STICKER = 112
+
+export function paintGroveSticker(
+  ctx: ShareCanvas,
+  stage: NonNullable<ShareCard["groveStage"]>,
+  blossoms: number,
+  x: number,
+  y: number,
+  size: number,
+) {
+  const cx = x + size / 2
+  const cy = y + size / 2
+  const ground = y + size * 0.78
+  ctx.fillStyle = "#efe6d4"
+  ctx.beginPath()
+  ctx.arc(cx, cy, size / 2 - 2, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.strokeStyle = "#c9bfae"
+  ctx.lineWidth = Math.max(2, size * 0.035)
+  ctx.stroke()
+  ctx.fillStyle = "#6d8a55"
+  ctx.beginPath()
+  ctx.ellipse(cx, ground, size * 0.3, size * 0.055, 0, 0, Math.PI * 2)
+  ctx.fill()
+  if (stage === "seed") {
+    ctx.fillStyle = "#8a6230"
+    ctx.beginPath()
+    ctx.ellipse(cx, ground - size * 0.05, size * 0.09, size * 0.055, 0, 0, Math.PI * 2)
+    ctx.fill()
+    return
+  }
+  const crown = stage === "canopy" || stage === "tree" || stage === "young"
+  const top = stage === "sprout" ? y + size * 0.46 : stage === "sapling" ? y + size * 0.34 : y + size * 0.3
+  ctx.strokeStyle = crown ? "#6b5344" : "#3d6b45"
+  ctx.lineWidth = stage === "canopy" ? size * 0.07 : stage === "tree" ? size * 0.055 : size * 0.04
+  ctx.beginPath()
+  ctx.moveTo(cx, ground)
+  ctx.lineTo(cx, top)
+  ctx.stroke()
+  const leaf = (lx: number, ly: number, rx: number, ry: number, rotation: number, color: string) => {
+    ctx.fillStyle = color
+    ctx.beginPath()
+    ctx.ellipse(lx, ly, rx, ry, rotation, 0, Math.PI * 2)
+    ctx.fill()
+  }
+  if (!crown) {
+    leaf(cx - size * 0.16, top + size * 0.08, size * 0.12, size * 0.05, -0.6, "#5f9a58")
+    leaf(cx + size * 0.16, top + size * 0.06, size * 0.12, size * 0.05, 0.6, "#7eb56a")
+    if (stage === "sapling") {
+      leaf(cx - size * 0.1, top - size * 0.02, size * 0.09, size * 0.04, -0.3, "#8fbf62")
+      leaf(cx + size * 0.1, top - size * 0.04, size * 0.09, size * 0.04, 0.35, "#6eaa5c")
+    }
+    return
+  }
+  const radius = stage === "canopy" ? size * 0.24 : stage === "tree" ? size * 0.2 : size * 0.15
+  const crownY = top + size * 0.02
+  ctx.fillStyle = "#3f7a4e"
+  ctx.beginPath()
+  ctx.arc(cx, crownY, radius, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = "#5a9458"
+  ctx.beginPath()
+  ctx.arc(cx - radius * 0.7, crownY + radius * 0.25, radius * 0.72, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = "#6aaa62"
+  ctx.beginPath()
+  ctx.arc(cx + radius * 0.72, crownY + radius * 0.2, radius * 0.68, 0, Math.PI * 2)
+  ctx.fill()
+  if (blossoms > 0) {
+    ctx.fillStyle = "#e2b15a"
+    ctx.beginPath()
+    ctx.arc(cx - radius * 0.3, crownY - radius * 0.15, size * 0.035, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(cx + radius * 0.35, crownY + radius * 0.1, size * 0.03, 0, Math.PI * 2)
+    ctx.fill()
+  }
+}
 
 function wrap(value: string, width: number): string[] {
   const words = value.split(/\s+/).filter(Boolean)
@@ -145,6 +229,10 @@ export function paintShareCard(
   photoImage?: unknown,
 ): void {
   paper(ctx, SHARE_CARD_WIDTH, SHARE_CARD_HEIGHT)
+  if (card.groveStage) {
+    paintGroveSticker(ctx, card.groveStage, card.groveBlossoms ?? 0, SHARE_CARD_WIDTH - PAD - STICKER, 72, STICKER)
+    ctx.fillStyle = INK
+  }
   ctx.font = "700 44px Fraunces, 'Times New Roman', serif"
   ctx.fillText("Epoch", PAD, 72)
   ctx.font = "500 22px Geist, system-ui, sans-serif"

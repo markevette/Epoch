@@ -60,6 +60,9 @@ describe("language", () => {
       beginPath() {},
       moveTo() {},
       lineTo() {},
+      arc() {},
+      ellipse() {},
+      fill() {},
       stroke() {},
       fillText(text) {
         texts.push(text)

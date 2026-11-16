@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { DaypartMark } from "@/components/daypart"
@@ -23,14 +24,27 @@ export default function HomePage() {
   const router = useRouter()
   const { ready, account } = useHealth()
   const t = useCopy()
-  const destination = account?.role === "admin" ? "/admin" : account?.profile ? "/home" : account ? "/onboarding" : "/login"
+
+  useEffect(() => {
+    if (!ready || !account) return
+    const next = account.role === "admin" ? "/admin" : account.profile ? "/home" : "/onboarding"
+    router.replace(next)
+  }, [ready, account, router])
+
+  if (!ready || account) {
+    return (
+      <main className="grid min-h-screen place-items-center">
+        <p className="font-display text-4xl">Epoch</p>
+      </main>
+    )
+  }
 
   return (
     <main className="mx-auto min-h-screen max-w-6xl px-5 py-6 md:px-8 md:py-8">
       <SiteHeader
         action={
-          <Link href={destination} className="text-sm text-foreground">
-            {account?.role === "admin" ? t.home.staff : account ? t.home.yourDay : t.home.signIn}
+          <Link href="/login" className="text-sm text-foreground">
+            {t.home.signIn}
           </Link>
         }
       />
@@ -46,8 +60,8 @@ export default function HomePage() {
             ))}
           </ul>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Button className="h-11 px-4" disabled={!ready} onClick={() => router.push(destination)}>
-              {account ? t.home.continue : t.home.signIn}
+            <Button className="h-11 px-4" onClick={() => router.push("/login")}>
+              {t.home.signIn}
             </Button>
             <Link href="/join" className={cn(buttonVariants({ variant: "outline" }), "h-11 px-4")}>
               {t.home.create}

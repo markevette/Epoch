@@ -48,7 +48,7 @@ describe("web app manifest", () => {
   it("points the browser at this site and keeps store preference off", async () => {
     const manifest = epochManifest("https://epoch.example/")
     assert.equal(manifest.display, "standalone")
-    assert.equal(manifest.start_url, "/")
+    assert.equal(manifest.start_url, "/home")
     assert.equal(manifest.prefer_related_applications, false)
     assert.equal(manifest.related_applications?.[0]?.platform, "webapp")
     assert.equal(manifest.related_applications?.[0]?.url, "https://epoch.example/manifest.webmanifest")
