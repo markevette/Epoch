@@ -13,6 +13,16 @@ const BITS: Record<CheerKind, string> = {
   level: "epoch-bit-leaf",
 }
 
+const BURST = [
+  { x: "-78px", y: "-72px", spin: "-80deg", delay: "0s" },
+  { x: "-40px", y: "-104px", spin: "46deg", delay: "0.04s" },
+  { x: "4px", y: "-118px", spin: "-24deg", delay: "0.08s" },
+  { x: "42px", y: "-100px", spin: "86deg", delay: "0.02s" },
+  { x: "82px", y: "-68px", spin: "-58deg", delay: "0.1s" },
+  { x: "108px", y: "-28px", spin: "130deg", delay: "0.06s" },
+  { x: "-108px", y: "-24px", spin: "18deg", delay: "0.12s" },
+]
+
 export function CheerHost() {
   const { locale } = useHealth()
   const [kind, setKind] = useState<CheerKind | null>(null)
@@ -47,14 +57,20 @@ export function CheerHost() {
   if (!kind) return null
   const line = cheerLine(locale, kind)
   return (
-    <div key={token} role="status" aria-live="polite" className="epoch-cheer">
+    <div key={token} className="epoch-cheer-slot">
       {still
         ? null
-        : [0, 1, 2, 3, 4, 5].map((index) => (
-            <span key={index} className={`epoch-bit ${BITS[kind]}`} style={{ left: `${12 + index * 14}%`, animationDelay: `${index * 0.12}s` }} />
+        : BURST.map((bit) => (
+            <span
+              key={bit.x}
+              className={`epoch-bit ${BITS[kind]}`}
+              style={{ animationDelay: bit.delay, ["--bit-x" as string]: bit.x, ["--bit-y" as string]: bit.y, ["--bit-spin" as string]: bit.spin }}
+            />
           ))}
-      <p className="font-display text-2xl tracking-tight">{line.title}</p>
-      <p className="mt-1 text-sm leading-6">{line.body}</p>
+      <div role="status" aria-live="polite" className="epoch-cheer">
+        <p className="font-display text-2xl tracking-tight">{line.title}</p>
+        <p className="mt-1 text-sm leading-6">{line.body}</p>
+      </div>
     </div>
   )
 }

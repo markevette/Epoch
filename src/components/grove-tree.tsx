@@ -1,5 +1,13 @@
 import type { GroveStage } from "@/lib/grove"
 
+const DROPS = [
+  { cx: 110, cy: 124, r: 5, x: "0px", delay: "0s" },
+  { cx: 90, cy: 132, r: 4, x: "-26px", delay: "0.04s" },
+  { cx: 132, cy: 130, r: 4.5, x: "28px", delay: "0.07s" },
+  { cx: 98, cy: 112, r: 3.5, x: "-14px", delay: "0.02s" },
+  { cx: 124, cy: 110, r: 3.5, x: "16px", delay: "0.1s" },
+]
+
 const GROWN: Record<GroveStage, number> = {
   seed: 0,
   sprout: 1,
@@ -54,7 +62,22 @@ export function GroveTree({ stage, blossoms, splash }: { stage: GroveStage; blos
           ) : null}
         </g>
       ) : null}
-      {splash ? <ellipse cx="110" cy="120" rx="18" ry="26" fill="oklch(0.85 0.08 220 / 0.55)" className="grove-splash" /> : null}
+      {splash ? (
+        <g aria-hidden="true">
+          <ellipse cx="110" cy="128" rx="22" ry="14" fill="oklch(0.85 0.08 220 / 0.5)" className="grove-splash" />
+          {DROPS.map((drop) => (
+            <circle
+              key={`${drop.cx}-${drop.cy}`}
+              className="grove-drop"
+              cx={drop.cx}
+              cy={drop.cy}
+              r={drop.r}
+              fill="oklch(0.78 0.11 215 / 0.85)"
+              style={{ animationDelay: drop.delay, ["--drop-x" as string]: drop.x }}
+            />
+          ))}
+        </g>
+      ) : null}
     </svg>
   )
 }
