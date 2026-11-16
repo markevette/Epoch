@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { Share2, Sprout, SunMedium, TreePine, Trophy, Users } from "lucide-react"
 import { DaypartMark } from "@/components/daypart"
 import { LanguageToggle, useCopy } from "@/components/language-toggle"
@@ -26,14 +26,8 @@ function active(pathname: string, href: string) {
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const router = useRouter()
-  const { profile, account, signOut } = useHealth()
+  const { profile, account } = useHealth()
   const t = useCopy()
-
-  async function leave() {
-    await signOut()
-    router.replace("/login")
-  }
 
   return (
     <div className="min-h-screen md:grid md:grid-cols-[232px_1fr]">
@@ -42,16 +36,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <Link href="/home" className="font-display text-2xl tracking-tight">
             Epoch
           </Link>
-          <p className="mt-3 text-sm font-medium">{profile?.name}</p>
+          <Link href="/home/profile" className="mt-3 block text-sm font-medium hover:underline" aria-current={pathname === "/home/profile" ? "page" : undefined}>
+            {profile?.name}
+          </Link>
           <p className="text-xs text-muted-foreground">{account?.email}</p>
           <DaypartMark className="mt-4" />
           <LanguageToggle className="mt-4" />
-          <Link href="/home/password" className="mt-3 text-sm text-primary hover:underline">
-            {t.login.password}
-          </Link>
-          <button type="button" className="mt-3 text-left text-sm text-primary hover:underline" onClick={leave}>
-            {t.nav.signOut}
-          </button>
           <nav className="mt-6 grid gap-1">
             {NAV.map((item) => {
               const Icon = item.icon
@@ -77,18 +67,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <Link href="/home" className="font-display text-xl">
               Epoch
             </Link>
-            <p className="text-[11px] text-muted-foreground">{profile?.name ?? ""}</p>
+            <Link href="/home/profile" className="block text-sm font-medium" aria-current={pathname === "/home/profile" ? "page" : undefined}>
+              {profile?.name ?? ""}
+            </Link>
             <DaypartMark compact />
           </div>
-          <div className="flex items-center gap-3">
-            <LanguageToggle />
-            <Link href="/home/password" className="text-sm text-primary">
-              {t.login.password}
-            </Link>
-            <button type="button" className="text-sm text-primary" onClick={leave}>
-              {t.nav.signOut}
-            </button>
-          </div>
+          <LanguageToggle />
         </header>
         {children}
         <SleepReminderHost />

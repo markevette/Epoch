@@ -10,14 +10,17 @@ import { formatLongDate, isoDate } from "@/lib/format"
 import { foodDay } from "@/lib/meals"
 import { morningsKeptLine, summarizeRewards } from "@/lib/rewards"
 import {
+  paintGroveSticker,
   paintShareCard,
   pngFileFromPaint,
   SHARE_CARD_FILENAME,
   WEEK_PLOT,
   WEEK_SLOT,
   weekBarFrames,
+  type ShareCanvas,
   type SharePhoto,
 } from "@/lib/share-card"
+import { normalizeGrove, stageFor, type GroveStage } from "@/lib/grove"
 import { lastWeekScores } from "@/lib/score-week"
 import { burnedLine, workoutOn } from "@/lib/workouts"
 
@@ -40,6 +43,27 @@ async function pictureFromFile(file: File): Promise<CardPhoto> {
   if (!blob) throw new Error("picture")
   const bitmap = await createImageBitmap(canvas)
   return { width, height, url: URL.createObjectURL(blob), bitmap }
+}
+
+const STAGE_LABEL: Record<GroveStage, { en: string; de: string }> = {
+  seed: { en: "Seed", de: "Samen" },
+  sprout: { en: "Sprout", de: "Spross" },
+  sapling: { en: "Sapling", de: "Setzling" },
+  young: { en: "Young tree", de: "Jungbaum" },
+  tree: { en: "Tree", de: "Baum" },
+  canopy: { en: "Canopy", de: "Krone" },
+}
+
+function GroveMark({ stage, blossoms, label }: { stage: GroveStage; blossoms: number; label: string }) {
+  const ref = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const canvas = ref.current
+    const context = canvas?.getContext("2d")
+    if (!canvas || !context) return
+    context.clearRect(0, 0, canvas.width, canvas.height)
+    paintGroveSticker(context as unknown as ShareCanvas, stage, blossoms, 0, 0, canvas.width)
+  }, [stage, blossoms])
+  return <canvas ref={ref} width={144} height={144} className="size-16 shrink-0 rounded-full" aria-label={label} />
 }
 
 function WeekBars({ scores, label }: { scores: number[]; label: string }) {
@@ -93,6 +117,8 @@ export default function SharePage() {
   const morningsLine = morningsKeptLine(summarizeRewards(member.rewards, now).morningsKept, locale)
   const weekScores = lastWeekScores(member, now).map((day) => Math.round(day.score))
   const weekLabel = pick(locale, "Last 7 daily scores", "Die letzten 7 Tageswerte")
+  const grove = stageFor(normalizeGrove(member.grove).watered)
+  const groveLabel = pick(locale, STAGE_LABEL[grove.stage].en, STAGE_LABEL[grove.stage].de)
   const sentences = [
     pick(locale, `${first}'s daily score is ${score}.`, `Der Tageswert von ${first} ist ${score}.`),
     ...copy(locale).claims,
@@ -114,6 +140,8 @@ export default function SharePage() {
           photo,
           week: showWeek ? weekScores : null,
           weekLabel,
+          groveStage: grove.stage,
+          groveBlossoms: grove.blossoms,
         },
         photo?.bitmap,
       )
@@ -221,16 +249,19 @@ export default function SharePage() {
             </div>
           ) : null}
         </div>
-        {photo ? (
-          <Image
-            src={photo.url}
-            alt=""
-            width={photo.width}
-            height={photo.height}
-            unoptimized
-            className="h-36 w-28 shrink-0 rounded-2xl object-cover sm:h-44 sm:w-36"
-          />
-        ) : null}
+        <div className="flex shrink-0 flex-col items-end gap-3">
+          <GroveMark stage={grove.stage} blossoms={grove.blossoms} label={groveLabel} />
+          {photo ? (
+            <Image
+              src={photo.url}
+              alt=""
+              width={photo.width}
+              height={photo.height}
+              unoptimized
+              className="h-36 w-28 rounded-2xl object-cover sm:h-44 sm:w-36"
+            />
+          ) : null}
+        </div>
       </article>
 
       <div className="mt-4 flex flex-wrap gap-2">
