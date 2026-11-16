@@ -38,6 +38,7 @@ export type ShareCanvas = {
   lineTo: (x: number, y: number) => void
   stroke: () => void
   fillText: (text: string, x: number, y: number) => void
+  measureText?: (text: string) => { width: number }
   drawImage?: (image: unknown, x: number, y: number, w: number, h: number) => void
 }
 
@@ -93,6 +94,42 @@ export function weekBars(scores: number[]): number[] {
   return scores.map((score) => 0.35 + ((score - min) / span) * 0.65)
 }
 
+export const WEEK_SLOT = 44
+export const WEEK_BAR_WIDTH = 14
+export const WEEK_PLOT = 56
+
+export type WeekBarFrame = {
+  slotX: number
+  barX: number
+  barY: number
+  barWidth: number
+  barHeight: number
+  baseline: number
+  label: string
+  labelX: number
+}
+
+/** One column per day. Every bar ends on the same baseline, and its score is centered in that column. */
+export function weekBarFrames(scores: number[], measure: (label: string) => number = (label) => label.length * 9): WeekBarFrame[] {
+  const heights = weekBars(scores)
+  return scores.map((score, index) => {
+    const label = String(Math.round(score))
+    const barHeight = Math.max(2, Math.round(WEEK_PLOT * (heights[index] ?? 0)))
+    const slotX = index * WEEK_SLOT
+    const textWidth = measure(label)
+    return {
+      slotX,
+      barX: slotX + (WEEK_SLOT - WEEK_BAR_WIDTH) / 2,
+      barY: WEEK_PLOT - barHeight,
+      barWidth: WEEK_BAR_WIDTH,
+      barHeight,
+      baseline: WEEK_PLOT,
+      label,
+      labelX: slotX + (WEEK_SLOT - textWidth) / 2,
+    }
+  })
+}
+
 function fittedPhoto(photo: { width: number; height: number }): { width: number; height: number; x: number; y: number } {
   const maxWidth = 216
   const maxHeight = 264
@@ -134,15 +171,24 @@ export function paintShareCard(
     ctx.font = "500 20px Geist, system-ui, sans-serif"
     ctx.fillText(card.weekLabel || "Last 7 daily scores", PAD, y)
     y += 36
-    const bars = weekBars(week)
-    bars.forEach((height, index) => {
-      const barHeight = Math.round(48 * height)
-      ctx.fillRect(PAD + index * 28, y + (48 - barHeight), 16, barHeight)
-    })
-    y += 60
-    ctx.font = "400 18px Geist, system-ui, sans-serif"
-    ctx.fillText(week.join("  "), PAD, y)
-    y += 40
+    const frames = weekBarFrames(week, (label) => ctx.measureText?.(label).width ?? label.length * 9)
+    const plotTop = y
+    for (const frame of frames) {
+      ctx.fillRect(PAD + frame.barX, plotTop + frame.barY, frame.barWidth, frame.barHeight)
+    }
+    const baseline = plotTop + WEEK_PLOT
+    ctx.strokeStyle = RULE
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(PAD, baseline)
+    ctx.lineTo(PAD + frames.length * WEEK_SLOT, baseline)
+    ctx.stroke()
+    ctx.fillStyle = INK
+    ctx.font = "400 16px Geist, system-ui, sans-serif"
+    for (const frame of frames) {
+      ctx.fillText(frame.label, PAD + frame.labelX, baseline + 8)
+    }
+    y = baseline + 32
   }
   if (card.morningsLine) {
     ctx.font = "500 22px Geist, system-ui, sans-serif"

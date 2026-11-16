@@ -13,7 +13,9 @@ import {
   paintShareCard,
   pngFileFromPaint,
   SHARE_CARD_FILENAME,
-  weekBars,
+  WEEK_PLOT,
+  WEEK_SLOT,
+  weekBarFrames,
   type SharePhoto,
 } from "@/lib/share-card"
 import { lastWeekScores } from "@/lib/score-week"
@@ -38,6 +40,34 @@ async function pictureFromFile(file: File): Promise<CardPhoto> {
   if (!blob) throw new Error("picture")
   const bitmap = await createImageBitmap(canvas)
   return { width, height, url: URL.createObjectURL(blob), bitmap }
+}
+
+function WeekBars({ scores, label }: { scores: number[]; label: string }) {
+  const frames = weekBarFrames(scores)
+  const width = frames.length * WEEK_SLOT
+  return (
+    <div className="mt-4">
+      <p className="text-xs tracking-[0.14em] text-muted-foreground uppercase">{label}</p>
+      <div className="mt-2" style={{ width }}>
+        <div className="relative border-b border-border" style={{ height: WEEK_PLOT }} aria-hidden="true">
+          {frames.map((frame) => (
+            <div
+              key={frame.slotX}
+              className="absolute rounded-t-sm bg-primary"
+              style={{ left: frame.barX, bottom: 0, width: frame.barWidth, height: frame.barHeight }}
+            />
+          ))}
+        </div>
+        <div className="relative h-5">
+          {frames.map((frame) => (
+            <p key={frame.slotX} className="absolute text-center text-[11px] leading-5 tabular text-muted-foreground" style={{ left: frame.slotX, width: WEEK_SLOT }}>
+              {frame.label}
+            </p>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function SharePage() {
@@ -180,15 +210,7 @@ export default function SharePage() {
           <p className="mt-2 text-sm text-muted-foreground">{copy(locale).home.dailyScore}</p>
           <p className="mt-1 text-sm">{confidence}</p>
           {showWeek && weekScores.length > 0 ? (
-            <div className="mt-4">
-              <p className="text-xs tracking-[0.14em] text-muted-foreground uppercase">{weekLabel}</p>
-              <div className="mt-2 flex h-16 items-end gap-1" aria-hidden="true">
-                {weekBars(weekScores).map((height, index) => (
-                  <div key={weekScores[index] + "-" + index} className="w-3 rounded-sm bg-primary" style={{ height: `${Math.round(height * 100)}%` }} />
-                ))}
-              </div>
-              <p className="mt-2 text-sm tabular">{weekScores.join("  ")}</p>
-            </div>
+            <WeekBars scores={weekScores} label={weekLabel} />
           ) : null}
           {morningsLine ? <p className="mt-4 text-sm">{morningsLine}</p> : null}
           {burned && workout && workout.kcal > 0 ? (

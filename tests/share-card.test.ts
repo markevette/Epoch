@@ -1,31 +1,36 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { PUBLIC_CLAIMS } from "../src/lib/claims"
-import { paintPairCard, paintShareCard, weekBars, type ShareCanvas } from "../src/lib/share-card"
+import { paintPairCard, paintShareCard, WEEK_BAR_WIDTH, WEEK_PLOT, WEEK_SLOT, weekBarFrames, type ShareCanvas } from "../src/lib/share-card"
 
 function recordPaint(paint: (ctx: ShareCanvas) => void) {
   const texts: string[] = []
   const images: unknown[] = []
+  const rects: { x: number; y: number; w: number; h: number }[] = []
+  const placed: { text: string; x: number; y: number }[] = []
   const ctx: ShareCanvas = {
     fillStyle: "",
     strokeStyle: "",
     font: "",
     textBaseline: "top",
     lineWidth: 1,
-    fillRect() {},
+    fillRect(x, y, w, h) {
+      rects.push({ x, y, w, h })
+    },
     beginPath() {},
     moveTo() {},
     lineTo() {},
     stroke() {},
-    fillText(text) {
+    fillText(text, x, y) {
       texts.push(text)
+      placed.push({ text, x, y })
     },
     drawImage(image) {
       images.push(image)
     },
   }
   paint(ctx)
-  return { text: texts.join(" "), texts, images }
+  return { text: texts.join(" "), texts, images, rects, placed }
 }
 
 describe("share card", () => {
@@ -150,10 +155,24 @@ describe("share card", () => {
       }),
     )
     assert.ok(shown.text.includes("Last 7 daily scores"))
-    assert.ok(shown.text.includes("70  72  74"))
-    const bars = weekBars([70, 72, 74])
+    const frames = weekBarFrames([70, 72, 74])
+    assert.equal(frames.length, 3)
+    assert.equal(new Set(frames.map((frame) => frame.barY + frame.barHeight)).size, 1)
+    assert.equal(frames[0]?.baseline, WEEK_PLOT)
+    assert.ok((frames[2]?.barHeight ?? 0) > (frames[0]?.barHeight ?? 0))
+    const bars = shown.rects.filter((rect) => rect.w === WEEK_BAR_WIDTH)
     assert.equal(bars.length, 3)
-    assert.ok(bars[2]! > bars[0]!)
+    const bottoms = bars.map((rect) => rect.y + rect.h)
+    assert.equal(new Set(bottoms).size, 1)
+    for (const frame of frames) {
+      const bar = bars.find((rect) => rect.x === 80 + frame.barX && rect.y + rect.h === (bottoms[0] ?? 0))
+      const label = shown.placed.find((item) => item.text === frame.label && item.x === 80 + frame.labelX)
+      assert.ok(bar)
+      assert.ok(label)
+      assert.equal(label.y, (bottoms[0] ?? 0) + 8)
+      assert.ok(label.x >= frame.slotX + 80)
+      assert.ok(label.x + frame.label.length * 9 <= frame.slotX + 80 + WEEK_SLOT)
+    }
   })
 
   it("prints the date above the daily score", async () => {
