@@ -75,8 +75,7 @@ describe("language", () => {
       scoreLabel: "Tageswert",
       confidence: "Dünne Akte",
       morningsLine: null,
-      burnedLine: null,
-      sentences: ["Größe"],
+      burnedLine: "Größe",
     })
     const card = texts.join("\n")
     assert.ok(card.includes("Jörg"))
