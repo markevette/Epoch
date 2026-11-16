@@ -38,10 +38,11 @@ export type AccessEntry = {
 }
 
 function demoSeedEnabled() {
+  if (process.env.NODE_ENV === "production") return false
   const flag = process.env.EPOCH_SEED_DEMO?.trim()
   if (flag === "1") return true
   if (flag === "0") return false
-  return process.env.NODE_ENV !== "production"
+  return true
 }
 
 async function insertUser(

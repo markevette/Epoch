@@ -35,7 +35,8 @@ describe("account recovery", () => {
     const letter = (await listOutbox())[0]
     assert.ok(letter)
     assert.equal(letter.toEmail, DEMO_MEMBER_EMAIL)
-    const token = /token=([A-Za-z0-9_-]+)/.exec(letter.body)?.[1]
+    const token = /#token=([A-Za-z0-9_-]+)/.exec(letter.body)?.[1]
+    assert.equal(letter.body.includes("?token="), false)
     assert.ok(token)
     const short = await resetPasswordWithToken(token, "short")
     assert.ok("error" in short)
@@ -54,7 +55,8 @@ describe("account recovery", () => {
     await requestPasswordReset("reset.host@example.com")
     const notes = (await listOutbox()).filter((row) => row.toEmail === "reset.host@example.com")
     assert.equal(notes.length, 3)
-    assert.ok(notes.every((row) => row.body.includes("http://127.0.0.1:4317/recover/new?token=")))
+    assert.ok(notes.every((row) => row.body.includes("http://127.0.0.1:4317/recover/new#token=")))
+    assert.ok(notes.every((row) => !row.body.includes("?token=")))
     assert.ok(notes.every((row) => !row.body.includes("evil.example")))
     await requestPasswordReset("reset.host@example.com")
     assert.equal((await listOutbox()).filter((row) => row.toEmail === "reset.host@example.com").length, 3)

@@ -35,7 +35,7 @@ export async function sendLetter(letter: OutboxLetter): Promise<boolean> {
 }
 
 export function recoveryLetter(origin: string, token: string): { subject: string; body: string } {
-  const url = `${origin.replace(/\/$/, "")}/recover/new?token=${encodeURIComponent(token)}`
+  const url = `${origin.replace(/\/$/, "")}/recover/new#token=${encodeURIComponent(token)}`
   return {
     subject: "Reset your Epoch password",
     body: `Use this link to choose a new password. It closes in an hour.\n\n${url}\n`,

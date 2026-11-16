@@ -78,8 +78,23 @@ describe("deploy", () => {
     assert.match(String(report.error), /8 characters/)
   })
 
-  it("loads the demo accounts only when that seed is asked for", async () => {
+  it("ignores the demo seed flag in production", async () => {
     const report = probe("demo", {
+      EPOCH_DB: freshFile(),
+      EPOCH_SEED_DEMO: "1",
+      EPOCH_DEMO_EMAIL: "member@example.test",
+      EPOCH_DEMO_PASSWORD: "test-member-9",
+      EPOCH_DEMO_ADMIN_EMAIL: "staff@example.test",
+      EPOCH_DEMO_ADMIN_PASSWORD: "test-staff-9",
+    })
+    assert.equal(report.count, 0)
+    assert.equal(report.avery, false)
+    assert.equal(report.demoAdmin, false)
+  })
+
+  it("loads the demo accounts outside production when that seed is asked for", async () => {
+    const report = probe("demo", {
+      NODE_ENV: "development",
       EPOCH_DB: freshFile(),
       EPOCH_SEED_DEMO: "1",
       EPOCH_DEMO_EMAIL: "member@example.test",
