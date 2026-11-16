@@ -7,6 +7,7 @@ import { CompareChart } from "@/components/trend-chart"
 import { useHealth } from "@/components/health-provider"
 import { Button } from "@/components/ui/button"
 import { appFetch } from "@/lib/browser-api"
+import { raiseCheer } from "@/lib/cheer"
 import { nudgeText, pick, storedNudge, toneText, translateError } from "@/lib/copy"
 import type { ScoreDay, ScoreTone } from "@/lib/score-week"
 
@@ -51,6 +52,11 @@ export default function BuddyWeekPage() {
 
   useEffect(() => {
     void load()
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load()
+    }
+    document.addEventListener("visibilitychange", onVisible)
+    return () => document.removeEventListener("visibilitychange", onVisible)
   }, [load])
 
   async function send(optionId: string) {
@@ -68,6 +74,7 @@ export default function BuddyWeekPage() {
       return
     }
     setWeek(body)
+    raiseCheer("line")
     await reload()
   }
 
@@ -84,15 +91,20 @@ export default function BuddyWeekPage() {
 
       {!week && !error ? <p className="mt-6 text-sm text-muted-foreground">{pick(locale, "The week is loading.", "Die Woche wird geladen.")}</p> : null}
 
+      {week?.received ? (
+        <section className="mt-8 rounded-2xl border border-border bg-moss p-5">
+          <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">{pick(locale, "Received", "Empfangen")}</p>
+          <p className="mt-2 font-display text-2xl tracking-tight">
+            {pick(locale, `${firstName(week.received.name)} wrote`, `${firstName(week.received.name)} schrieb`)}
+          </p>
+          <p className="mt-2 text-sm leading-6">{storedNudge(locale, week.received.text)}</p>
+        </section>
+      ) : null}
+
       {week ? (
-        <section className="mt-8 rounded-2xl border border-border bg-card p-5">
+        <section className="mt-4 rounded-2xl border border-border bg-card p-5">
           <CompareChart you={week.you} them={week.them} youName={pick(locale, "You", "Du")} themName={partner} />
           <p className="mt-4 text-sm leading-6">{toneText(locale, week.tone)}</p>
-          {week.received ? (
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              {pick(locale, `${firstName(week.received.name)} wrote:`, `${firstName(week.received.name)} schrieb:`)} {storedNudge(locale, week.received.text)}
-            </p>
-          ) : null}
         </section>
       ) : null}
 

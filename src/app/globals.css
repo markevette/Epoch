@@ -339,3 +339,50 @@ html[data-install-banner] [data-chrome="member"] {
   0% { opacity: 0.85; transform: translateY(10px) scale(0.7); }
   100% { opacity: 0; transform: translateY(-26px) scale(1.15); }
 }
+
+.epoch-cheer {
+  position: fixed;
+  z-index: 45;
+  top: 1rem;
+  left: 50%;
+  width: min(24rem, calc(100% - 1.5rem));
+  transform: translateX(-50%);
+  overflow: hidden;
+  border-radius: 1.25rem;
+  border: 1px solid var(--border);
+  background: var(--moss);
+  padding: 1.1rem 1.25rem 1.2rem;
+  box-shadow: 0 18px 40px -28px rgba(30, 50, 40, 0.7);
+  animation: epoch-cheer-in 0.45s ease;
+}
+
+.epoch-bit {
+  position: absolute;
+  top: 1.4rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  animation: epoch-bit 1.6s ease-out both;
+}
+
+.epoch-bit-sun { background: oklch(0.82 0.15 85); }
+.epoch-bit-leaf { width: 0.85rem; height: 0.5rem; border-radius: 999px 0 999px 0; background: oklch(0.55 0.12 150); }
+.epoch-bit-drop { width: 0.45rem; height: 0.7rem; border-radius: 999px; background: oklch(0.62 0.1 200); }
+.epoch-bit-mark { background: var(--primary); }
+
+@keyframes epoch-cheer-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes epoch-bit {
+  0% { opacity: 0; transform: translateY(8px) scale(0.6); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-64px) scale(0.4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .epoch-cheer, .epoch-bit, .grove-sun, .grove-tree-sway, .grove-splash {
+    animation: none;
+  }
+}

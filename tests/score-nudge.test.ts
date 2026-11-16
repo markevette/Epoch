@@ -64,6 +64,13 @@ describe("buddy week", () => {
 
     const seen = await buddyWeek(mina, pairId, 0, now)
     assert.ok(!("error" in seen) && seen.received?.text === week.options[0]!.text)
+    const minaBoard = await pairBoard(mina, 0, now)
+    assert.ok(!("error" in minaBoard))
+    if ("error" in minaBoard) return
+    assert.equal(minaBoard.pairs[0]?.incomingLine?.text, week.options[0]!.text)
+    assert.equal(minaBoard.pairs[0]?.incomingLine?.name, "Avery Chen")
+    const averyBoard = await pairBoard(avery, 0, now)
+    assert.ok(!("error" in averyBoard) && averyBoard.pairs[0]?.incomingLine == null)
 
     const row = await (await getDb()).prepare("SELECT profile_json FROM users WHERE id = ?").get(avery) as { profile_json: string }
     const forged = JSON.parse(row.profile_json) as Profile

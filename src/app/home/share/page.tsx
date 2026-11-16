@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import { Disclaimer } from "@/components/disclaimer"
 import { useHealth } from "@/components/health-provider"
@@ -13,8 +13,10 @@ import {
   paintShareCard,
   pngFileFromPaint,
   SHARE_CARD_FILENAME,
+  weekBars,
   type SharePhoto,
 } from "@/lib/share-card"
+import { lastWeekScores } from "@/lib/score-week"
 import { burnedLine, workoutOn } from "@/lib/workouts"
 
 type CardPhoto = SharePhoto & { url: string; bitmap: ImageBitmap }
@@ -42,7 +44,11 @@ export default function SharePage() {
   const { profile, model, locale } = useHealth()
   const [shareNote, setShareNote] = useState<string | null>(null)
   const [photo, setPhoto] = useState<CardPhoto | null>(null)
+  const [showWeek, setShowWeek] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    setShowWeek(window.localStorage.getItem("epoch.share.week") === "show")
+  }, [])
   if (!profile || !model) return null
   const member = profile
   const reading = model
@@ -55,6 +61,8 @@ export default function SharePage() {
   const workout = workoutOn(member.workouts, foodDay(now))
   const burned = burnedLine(workout ? workout.kcal : null, locale)
   const morningsLine = morningsKeptLine(summarizeRewards(member.rewards, now).morningsKept, locale)
+  const weekScores = lastWeekScores(member, now).map((day) => Math.round(day.score))
+  const weekLabel = pick(locale, "Last 7 daily scores", "Die letzten 7 Tageswerte")
   const sentences = [
     pick(locale, `${first}'s daily score is ${score}.`, `Der Tageswert von ${first} ist ${score}.`),
     ...copy(locale).claims,
@@ -74,6 +82,8 @@ export default function SharePage() {
           burnedLine: burned,
           sentences,
           photo,
+          week: showWeek ? weekScores : null,
+          weekLabel,
         },
         photo?.bitmap,
       )
@@ -169,6 +179,17 @@ export default function SharePage() {
           <p className="mt-3 font-display text-7xl tabular leading-none">{Math.round(reading.longevityScore)}</p>
           <p className="mt-2 text-sm text-muted-foreground">{copy(locale).home.dailyScore}</p>
           <p className="mt-1 text-sm">{confidence}</p>
+          {showWeek && weekScores.length > 0 ? (
+            <div className="mt-4">
+              <p className="text-xs tracking-[0.14em] text-muted-foreground uppercase">{weekLabel}</p>
+              <div className="mt-2 flex h-16 items-end gap-1" aria-hidden="true">
+                {weekBars(weekScores).map((height, index) => (
+                  <div key={weekScores[index] + "-" + index} className="w-3 rounded-sm bg-primary" style={{ height: `${Math.round(height * 100)}%` }} />
+                ))}
+              </div>
+              <p className="mt-2 text-sm tabular">{weekScores.join("  ")}</p>
+            </div>
+          ) : null}
           {morningsLine ? <p className="mt-4 text-sm">{morningsLine}</p> : null}
           {burned && workout && workout.kcal > 0 ? (
             <div className="mt-4 border-t border-border pt-4">
@@ -210,6 +231,34 @@ export default function SharePage() {
           </Button>
         ) : null}
       </div>
+
+      <section className="mt-6 max-w-md rounded-2xl border border-border bg-card p-5">
+        <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">{pick(locale, "Weekly progress", "Wochenverlauf")}</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {pick(
+            locale,
+            "These are the last 7 daily scores a buddy can see. They stay off the card until you turn them on. The preview above matches the file you download.",
+            "Das sind die letzten 7 Tageswerte, die ein Buddy sehen kann. Sie bleiben von der Karte, bis du sie einschaltest. Die Vorschau oben entspricht der Datei, die du lädst.",
+          )}
+        </p>
+        <button
+          type="button"
+          className="mt-3 rounded-full bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50"
+          aria-pressed={showWeek}
+          disabled={weekScores.length === 0}
+          onClick={() => {
+            const next = !showWeek
+            setShowWeek(next)
+            window.localStorage.setItem("epoch.share.week", next ? "show" : "hide")
+          }}
+        >
+          {weekScores.length === 0
+            ? pick(locale, "No week on the file yet", "Noch keine Woche auf der Akte")
+            : showWeek
+              ? pick(locale, "Hide weekly progress", "Wochenverlauf verbergen")
+              : pick(locale, "Show weekly progress", "Wochenverlauf zeigen")}
+        </button>
+      </section>
 
       <div className="mt-6 flex flex-wrap gap-2">
         <Button className="h-11 px-4" onClick={() => void downloadCard()}>

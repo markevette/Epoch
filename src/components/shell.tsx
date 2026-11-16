@@ -6,6 +6,8 @@ import { Share2, Sprout, SunMedium, TreePine, Trophy, Users } from "lucide-react
 import { DaypartMark } from "@/components/daypart"
 import { LanguageToggle, useCopy } from "@/components/language-toggle"
 import { useHealth } from "@/components/health-provider"
+import { CheerHost } from "@/components/cheer"
+import { InstallerIntro } from "@/components/intro"
 import { SleepReminderHost } from "@/components/sleep-clock"
 
 const NAV = [
@@ -90,6 +92,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </header>
         {children}
         <SleepReminderHost />
+        <CheerHost />
+        <InstallerIntro />
       </div>
       <nav className="fixed inset-x-0 bottom-0 z-30 flex overflow-x-auto border-t border-border bg-card md:hidden">
         {NAV.map((item) => {

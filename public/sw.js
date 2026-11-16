@@ -13,7 +13,8 @@ self.addEventListener("fetch", () => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close()
   const raw = event.notification.data && event.notification.data.url
-  const path = raw === "/home/grove" || raw === "/home/practice/sleep-wake" || raw === "/home/practice/sleep-dim" || raw === "/home/practice/sleep-nap"
+  const buddy = typeof raw === "string" && /^\/home\/buddies\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)
+  const path = raw === "/home/grove" || raw === "/home/practice/sleep-wake" || raw === "/home/practice/sleep-dim" || raw === "/home/practice/sleep-nap" || buddy
     ? raw
     : "/home/practice"
   const target = new URL(path, self.location.origin).href
