@@ -1,8 +1,8 @@
 "use client"
 
-import { Suspense, useState } from "react"
+import { useLayoutEffect, useState } from "react"
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { useHealth } from "@/components/health-provider"
 import { SiteHeader } from "@/components/site-header"
 import { useCopy } from "@/components/language-toggle"
@@ -16,11 +16,19 @@ function ResetForm() {
   const t = useCopy()
   const { locale } = useHealth()
   const router = useRouter()
-  const params = useSearchParams()
-  const token = params.get("token") ?? ""
+  const [token, setToken] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+
+  useLayoutEffect(() => {
+    const match = /^#token=([A-Za-z0-9_-]+)$/.exec(window.location.hash)
+    const value = match?.[1] ? decodeURIComponent(match[1]) : ""
+    if (value) setToken(value)
+    if (match || new URLSearchParams(window.location.search).has("token")) {
+      window.history.replaceState(null, "", window.location.pathname)
+    }
+  }, [])
 
   async function submit() {
     if (pending) return
@@ -68,9 +76,5 @@ function ResetForm() {
 }
 
 export default function RecoverNewPage() {
-  return (
-    <Suspense>
-      <ResetForm />
-    </Suspense>
-  )
+  return <ResetForm />
 }
