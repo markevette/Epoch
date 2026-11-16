@@ -1,4 +1,4 @@
-/** The public lines on the homepage and the share card. */
+/** The public lines on the homepage. The share card does not carry them. */
 export const CLAIM_SCORE = "A daily score from sleep, fitness, food, and stress."
 export const CLAIM_PRACTICE = "Practice opens four doors a day. A new skill on each branch once a week."
 export const CLAIM_BUDDIES = "Buddies keep a morning count. Reward points open another buddy at 150 points each."

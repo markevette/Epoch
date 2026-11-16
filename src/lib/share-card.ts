@@ -11,7 +11,6 @@ export type ShareCard = {
   confidence: string
   morningsLine: string | null
   burnedLine: string | null
-  sentences: string[]
   photo?: SharePhoto | null
   /** Last 7 daily scores, the same week a buddy can see. Omit to leave them off the card. */
   week?: number[] | null
@@ -223,6 +222,23 @@ function fittedPhoto(photo: { width: number; height: number }): { width: number;
   return { width, height, x: SHARE_CARD_WIDTH - PAD - width, y: 244 }
 }
 
+/** The painted card ends under the score, the optional week, the calories, and the picture. */
+export function shareCardHeight(card: ShareCard): number {
+  const week = (card.week ?? []).filter((score) => Number.isFinite(score)).slice(0, 7)
+  let bottom = 404
+  if (week.length > 0 || card.morningsLine || card.burnedLine) {
+    let y = 476
+    if (week.length > 0) y += 36 + WEEK_PLOT + 32
+    if (card.morningsLine) y += 40
+    if (card.burnedLine) y += 52
+    bottom = y
+  }
+  const photo = card.photo && card.photo.width > 0 && card.photo.height > 0 ? fittedPhoto(card.photo) : null
+  if (photo) bottom = Math.max(bottom, photo.y + photo.height)
+  if (card.groveStage) bottom = Math.max(bottom, 72 + STICKER)
+  return Math.ceil(bottom + 72)
+}
+
 export function paintShareCard(
   ctx: ShareCanvas,
   card: ShareCard,
@@ -250,11 +266,12 @@ export function paintShareCard(
     const placed = fittedPhoto(photo)
     ctx.drawImage(photoImage, placed.x, placed.y, placed.width, placed.height)
   }
+  const week = (card.week ?? []).filter((score) => Number.isFinite(score)).slice(0, 7)
+  const hasBelow = week.length > 0 || Boolean(card.morningsLine) || Boolean(card.burnedLine)
+  if (!hasBelow) return
   const textRight = photo && photoImage ? SHARE_CARD_WIDTH - PAD - 248 : SHARE_CARD_WIDTH - PAD
   rule(ctx, 440, textRight)
   let y = 476
-  const lineWidth = photo && photoImage ? 36 : 48
-  const week = (card.week ?? []).filter((score) => Number.isFinite(score)).slice(0, 7)
   if (week.length > 0) {
     ctx.font = "500 20px Geist, system-ui, sans-serif"
     ctx.fillText(card.weekLabel || "Last 7 daily scores", PAD, y)
@@ -286,16 +303,6 @@ export function paintShareCard(
   if (card.burnedLine) {
     ctx.font = "700 32px Fraunces, 'Times New Roman', serif"
     ctx.fillText(card.burnedLine, PAD, y)
-    y += 52
-  }
-  y += 8
-  ctx.font = "400 22px Geist, system-ui, sans-serif"
-  for (const sentence of card.sentences) {
-    for (const line of wrap(sentence, lineWidth)) {
-      ctx.fillText(line, PAD, y)
-      y += 32
-    }
-    y += 12
   }
 }
 
@@ -322,10 +329,11 @@ export function paintPairCard(ctx: ShareCanvas, input: PairCard): void {
 export async function pngFileFromPaint(
   filename: string,
   paint: (ctx: ShareCanvas) => void | Promise<void>,
+  height: number = SHARE_CARD_HEIGHT,
 ): Promise<File> {
   const canvas = document.createElement("canvas")
   canvas.width = SHARE_CARD_WIDTH
-  canvas.height = SHARE_CARD_HEIGHT
+  canvas.height = height
   const ctx = canvas.getContext("2d")
   if (!ctx) throw new Error("The card could not be drawn.")
   if (document.fonts?.ready) await document.fonts.ready

@@ -13,6 +13,7 @@ import {
   paintGroveSticker,
   paintShareCard,
   pngFileFromPaint,
+  shareCardHeight,
   SHARE_CARD_FILENAME,
   WEEK_PLOT,
   WEEK_SLOT,
@@ -108,7 +109,6 @@ export default function SharePage() {
   const reading = model
 
   const score = String(Math.round(reading.longevityScore))
-  const first = member.name.split(" ")[0]
   const confidence = `${confidenceText(locale, reading.confidenceLabel)} · ${Math.round(reading.confidence * 100)}% ${pick(locale, "confidence", "Verlässlichkeit")}`
   const now = new Date()
   const date = formatLongDate(isoDate(now), locale)
@@ -119,33 +119,28 @@ export default function SharePage() {
   const weekLabel = pick(locale, "Last 7 daily scores", "Die letzten 7 Tageswerte")
   const grove = stageFor(normalizeGrove(member.grove).watered)
   const groveLabel = pick(locale, STAGE_LABEL[grove.stage].en, STAGE_LABEL[grove.stage].de)
-  const sentences = [
-    pick(locale, `${first}'s daily score is ${score}.`, `Der Tageswert von ${first} ist ${score}.`),
-    ...copy(locale).claims,
-    ...(burned ? [burned.endsWith(".") ? burned : `${burned}.`] : []),
-  ]
+  const card = {
+    name: member.name,
+    date,
+    score,
+    scoreLabel: copy(locale).home.dailyScore,
+    confidence,
+    morningsLine,
+    burnedLine: burned,
+    photo,
+    week: showWeek ? weekScores : null,
+    weekLabel,
+    groveStage: grove.stage,
+    groveBlossoms: grove.blossoms,
+  }
   async function cardFile() {
-    return pngFileFromPaint(SHARE_CARD_FILENAME, (ctx) => {
-      paintShareCard(
-        ctx,
-        {
-          name: member.name,
-          date,
-          score,
-          scoreLabel: copy(locale).home.dailyScore,
-          confidence,
-          morningsLine,
-          burnedLine: burned,
-          sentences,
-          photo,
-          week: showWeek ? weekScores : null,
-          weekLabel,
-          groveStage: grove.stage,
-          groveBlossoms: grove.blossoms,
-        },
-        photo?.bitmap,
-      )
-    })
+    return pngFileFromPaint(
+      SHARE_CARD_FILENAME,
+      (ctx) => {
+        paintShareCard(ctx, card, photo?.bitmap)
+      },
+      shareCardHeight(card),
+    )
   }
 
   async function downloadCard() {
@@ -159,7 +154,7 @@ export default function SharePage() {
       link.click()
       link.remove()
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
-      setShareNote(pick(locale, "The card downloaded as a PNG, with the lines underneath it.", "Die Karte wurde als PNG geladen, mit den Zeilen darunter."))
+      setShareNote(pick(locale, "The card downloaded as a PNG.", "Die Karte wurde als PNG geladen."))
     } catch {
       setShareNote(pick(locale, "The card could not be drawn.", "Die Karte konnte nicht gezeichnet werden."))
     }
@@ -178,7 +173,7 @@ export default function SharePage() {
       return
     }
     try {
-      await navigator.share({ title: "Epoch", text: sentences.join(" "), files: [file] })
+      await navigator.share({ title: "Epoch", files: [file] })
       setShareNote(pick(locale, "Share sheet opened with the card.", "Das Teilen hat sich mit der Karte geöffnet."))
     } catch {
       setShareNote(pick(locale, "Share was dismissed.", "Das Teilen wurde geschlossen."))
@@ -320,11 +315,6 @@ export default function SharePage() {
         <Button variant="outline" className="h-11 px-4" onClick={() => void nativeShare()}>
           {pick(locale, "Share", "Teilen")}
         </Button>
-      </div>
-      <div className="mt-4 max-w-md text-sm leading-6 text-muted-foreground">
-        {sentences.map((sentence) => (
-          <p key={sentence}>{sentence}</p>
-        ))}
       </div>
       {shareNote ? <p className="mt-3 text-sm text-muted-foreground">{shareNote}</p> : null}
       <Disclaimer className="mt-8" />

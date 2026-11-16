@@ -1,7 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { PUBLIC_CLAIMS } from "../src/lib/claims"
-import { paintPairCard, paintShareCard, WEEK_BAR_WIDTH, WEEK_PLOT, WEEK_SLOT, weekBarFrames, type ShareCanvas } from "../src/lib/share-card"
+import { paintPairCard, paintShareCard, shareCardHeight, WEEK_BAR_WIDTH, WEEK_PLOT, WEEK_SLOT, weekBarFrames, type ShareCanvas } from "../src/lib/share-card"
 
 function recordPaint(paint: (ctx: ShareCanvas) => void) {
   const texts: string[] = []
@@ -40,28 +39,28 @@ function recordPaint(paint: (ctx: ShareCanvas) => void) {
 }
 
 describe("share card", () => {
-  it("puts the score and the public lines on the card, and leaves the age off", async () => {
-    const { text, images } = recordPaint((ctx) =>
-      paintShareCard(ctx, {
-        name: "Avery Chen",
-        date: "Tuesday, 10 November",
-        score: "75",
-        confidence: "Growing file · 60% confidence",
-        morningsLine: null,
-        burnedLine: null,
-        sentences: ["Avery's daily score is 75.", ...PUBLIC_CLAIMS],
-      }),
-    )
+  it("puts the date and the score on the card, and leaves the public lines off", async () => {
+    const card = {
+      name: "Avery Chen",
+      date: "Tuesday, 10 November",
+      score: "75",
+      confidence: "Growing file · 60% confidence",
+      morningsLine: null,
+      burnedLine: null,
+    }
+    const { text, images } = recordPaint((ctx) => paintShareCard(ctx, card))
     assert.equal(images.length, 0)
     assert.ok(text.includes("Tuesday, 10 November"))
     assert.ok(text.includes("75"))
     assert.ok(text.includes("Daily score"))
-    assert.ok(text.includes("Reward points open another buddy"))
+    assert.equal(text.includes("Reward points open another buddy"), false)
+    assert.equal(text.includes("daily score is"), false)
+    assert.equal(text.includes("clinician"), false)
     assert.equal(text.includes("biological"), false)
     assert.equal(text.includes("37.6"), false)
     assert.equal(text.includes("mornings kept"), false)
-    assert.ok(text.includes("morning count"))
-    assert.equal(text.includes("take"), false)
+    assert.ok(shareCardHeight(card) < 900)
+    assert.ok(shareCardHeight({ ...card, week: [70, 72, 74], burnedLine: "320 kcal burned", photo: { width: 80, height: 100 }, groveStage: "sprout" }) < 900)
   })
 
   it("prints the mornings kept when there is at least one", async () => {
@@ -73,7 +72,6 @@ describe("share card", () => {
         confidence: "Growing file · 60% confidence",
         morningsLine: "18 mornings kept",
         burnedLine: null,
-        sentences: ["A wellness model. A clinician still reads illness."],
       }),
     )
     assert.ok(text.includes("18 mornings kept"))
@@ -93,7 +91,6 @@ describe("share card", () => {
           confidence: "Growing file · 60% confidence",
           morningsLine: null,
           burnedLine: null,
-          sentences: ["Avery's daily score is 75."],
           photo: { width: 80, height: 100 },
         },
         photo,
@@ -113,7 +110,6 @@ describe("share card", () => {
         confidence: "Growing file · 60% confidence",
         morningsLine: "18 mornings kept",
         burnedLine: "320 kcal burned",
-        sentences: ["320 kcal burned."],
       }),
     )
     assert.ok(text.includes("320 kcal burned"))
@@ -143,7 +139,6 @@ describe("share card", () => {
         confidence: "Growing file · 60% confidence",
         morningsLine: null,
         burnedLine: null,
-        sentences: ["Avery's daily score is 75."],
       }),
     )
     assert.equal(hidden.text.includes("Last 7 daily scores"), false)
@@ -155,7 +150,6 @@ describe("share card", () => {
         confidence: "Growing file · 60% confidence",
         morningsLine: null,
         burnedLine: null,
-        sentences: ["Avery's daily score is 75."],
         week: [70, 72, 74],
         weekLabel: "Last 7 daily scores",
       }),
@@ -190,7 +184,6 @@ describe("share card", () => {
         confidence: "Growing file · 60% confidence",
         morningsLine: null,
         burnedLine: null,
-        sentences: ["Avery's daily score is 75."],
       }),
     )
     const dateAt = texts.indexOf("Tuesday, 10 November")
@@ -210,7 +203,6 @@ describe("share card", () => {
         confidence: "Growing file · 60% confidence",
         morningsLine: null,
         burnedLine: null,
-        sentences: ["Avery's daily score is 75."],
       }),
     )
     assert.equal(plain.arcs, 0)
@@ -222,7 +214,6 @@ describe("share card", () => {
         confidence: "Growing file · 60% confidence",
         morningsLine: null,
         burnedLine: null,
-        sentences: ["Avery's daily score is 75."],
         groveStage: "seed",
       }),
     )
@@ -234,7 +225,6 @@ describe("share card", () => {
         confidence: "Growing file · 60% confidence",
         morningsLine: null,
         burnedLine: null,
-        sentences: ["Avery's daily score is 75."],
         groveStage: "canopy",
         groveBlossoms: 3,
       }),
