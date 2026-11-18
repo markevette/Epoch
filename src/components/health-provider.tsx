@@ -5,7 +5,7 @@ import type { PublicAccount, Role } from "@/lib/accounts"
 import type { SessionBody } from "@/lib/auth-server"
 import { movementBetween, recommendations, type Recommendation } from "@/lib/interventions"
 import { assess, loggedDayCount } from "@/lib/score"
-import { foodDay, mealsDue, normalizeMeals, type MealDay } from "@/lib/meals"
+import { foodDay, linesOn, mealsDue, normalizeMeals, type MealDay } from "@/lib/meals"
 import { normalizeWorkouts, type WorkoutDay } from "@/lib/workouts"
 import { normalizeRewards, rewardWindow } from "@/lib/rewards"
 import { canComplete, normalizePractice } from "@/lib/practice"
@@ -279,7 +279,10 @@ export function HealthProvider({ children, initialLocale }: { children: React.Re
         meals: [...previous, day],
       })
       const row = normalizeMeals(saved?.meals).find((item) => item.date === date)
-      const landed = due.every((meal) => day[meal] == null || row?.[meal] === day[meal])
+      const landed = due.every((meal) => {
+        if (day[meal] == null) return true
+        return row?.[meal] === day[meal] && JSON.stringify(linesOn(row, meal)) === JSON.stringify(linesOn(day, meal))
+      })
       if (!landed) setError("Those calories stayed off the file. The card only takes meals this clock has reached.")
       return landed
     },

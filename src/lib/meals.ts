@@ -1,16 +1,28 @@
 import { DAY_START, MORNING_START, NIGHT_START } from "./daypart"
+import { cleanMealLines, mealEstimate, type MealLine } from "./foods"
 import { addDays, isoDate } from "./format"
 import { deviceWallClock, normalizeOffset, rewardWindow } from "./rewards"
 
 export const MEAL_ORDER = ["breakfast", "lunch", "dinner"] as const
 export type MealName = (typeof MEAL_ORDER)[number]
 
+export type { MealLine }
+
 export type MealDay = {
   date: string
   breakfast: number | null
   lunch: number | null
   dinner: number | null
+  breakfastLines?: MealLine[]
+  lunchLines?: MealLine[]
+  dinnerLines?: MealLine[]
 }
+
+const LINE_KEY = {
+  breakfast: "breakfastLines",
+  lunch: "lunchLines",
+  dinner: "dinnerLines",
+} as const
 
 /** A single meal. Zero is a logged meal with nothing eaten. */
 export const MEAL_KCAL_MAX = 4000
@@ -57,17 +69,34 @@ function cleanKcal(value: unknown): number | null {
   return value
 }
 
+export function mealLineKey(meal: MealName): "breakfastLines" | "lunchLines" | "dinnerLines" {
+  return LINE_KEY[meal]
+}
+
+export function linesOn(day: MealDay | null | undefined, meal: MealName): MealLine[] {
+  return day?.[LINE_KEY[meal]] ?? []
+}
+
 function cleanDay(value: unknown): MealDay | null {
   if (!value || typeof value !== "object") return null
   const row = value as Record<string, unknown>
   const date = typeof row.date === "string" ? row.date : ""
   if (!ISO_DATE.test(date)) return null
-  return {
+  const day: MealDay = {
     date,
     breakfast: cleanKcal(row.breakfast),
     lunch: cleanKcal(row.lunch),
     dinner: cleanKcal(row.dinner),
   }
+  for (const meal of MEAL_ORDER) {
+    const key = LINE_KEY[meal]
+    if (!Object.prototype.hasOwnProperty.call(row, key)) continue
+    const lines = cleanMealLines(row[key])
+    if (!lines.length) continue
+    day[meal] = Math.min(MEAL_KCAL_MAX, mealEstimate(lines))
+    day[key] = lines
+  }
+  return day
 }
 
 export function normalizeMeals(value: unknown): MealDay[] {
@@ -102,12 +131,37 @@ export function acceptMeals(args: {
     dinner: null,
   }
   const merged: MealDay = { ...prior }
+  const raw = rawMealDay(args.incoming, date)
   for (const meal of MEAL_ORDER) {
     if (!due.has(meal)) continue
+    const key = LINE_KEY[meal]
+    if (raw && Object.prototype.hasOwnProperty.call(raw, key)) {
+      const lines = cleanMealLines(raw[key])
+      if (lines.length) {
+        merged[meal] = Math.min(MEAL_KCAL_MAX, mealEstimate(lines))
+        merged[key] = lines
+        continue
+      }
+      delete merged[key]
+      const plain = cleanKcal(raw[meal])
+      if (plain != null) merged[meal] = plain
+      continue
+    }
     const value = incoming[meal]
     if (value == null) continue
     merged[meal] = value
+    delete merged[key]
   }
   if (merged.breakfast == null && merged.lunch == null && merged.dinner == null) return previous
   return normalizeMeals([...previous.filter((day) => day.date !== date), merged])
+}
+
+function rawMealDay(value: unknown, date: string): Record<string, unknown> | null {
+  if (!Array.isArray(value)) return null
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue
+    const row = item as Record<string, unknown>
+    if (row.date === date) return row
+  }
+  return null
 }

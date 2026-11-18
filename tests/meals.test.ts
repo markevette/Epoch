@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { acceptMeals, foodDay, mealClockOffset, mealsDue, normalizeMeals, type MealDay } from "../src/lib/meals"
+import { mealEstimate } from "../src/lib/foods"
+import { acceptMeals, foodDay, linesOn, mealClockOffset, mealsDue, normalizeMeals, type MealDay } from "../src/lib/meals"
 import { averyProfile } from "../src/lib/personas"
 import { freshen } from "../src/lib/storage"
 import type { Profile } from "../src/lib/types"
@@ -79,6 +80,29 @@ describe("meal calories", () => {
       offset,
     })
     assert.equal(saved[0]?.dinner, null)
+  })
+
+  it("turns a named drink into an estimate and keeps the foods", async () => {
+    const morning = new Date(Date.UTC(2026, 9, 27, 8, 0))
+    const coffee = { food: "coffee-milk", count: 1, honey: true, sugar: true }
+    assert.equal(mealEstimate([coffee]), 60)
+    const saved = acceptMeals({
+      stored: [],
+      incoming: [{ date: "2026-10-27", breakfast: 1, lunch: null, dinner: null, breakfastLines: [coffee] }],
+      serverNow: morning,
+      offset: 0,
+    })
+    assert.equal(saved[0]?.breakfast, 60)
+    assert.deepEqual(linesOn(saved[0], "breakfast"), [coffee])
+    assert.equal(saved[0]?.lunch, null)
+
+    const second = acceptMeals({
+      stored: saved,
+      incoming: [{ date: "2026-10-27", breakfast: 0, lunch: null, dinner: null, breakfastLines: [] }],
+      serverNow: morning,
+      offset: 0,
+    })
+    assert.deepEqual(second, [day("2026-10-27", 0, null, null)])
   })
 
   it("drops an empty day and keeps a missing list as none", async () => {
