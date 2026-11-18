@@ -93,7 +93,7 @@ export default function GrovePage() {
       apply(data)
       if (body.action === "water") {
         setSplash(true)
-        window.setTimeout(() => setSplash(false), 700)
+        window.setTimeout(() => setSplash(false), 1000)
         raiseCheer(view && data.stage !== view.stage ? "level" : "pour")
       }
       if (body.action === "gather") raiseCheer("sun")
