@@ -48,9 +48,17 @@ function firstName(name: string, locale: Locale): string {
   return clean.slice(0, 40) || (locale === "de" ? "Jemand" : "Someone")
 }
 
+function isWebPush(value: unknown): value is WebPushModule {
+  if (!value || typeof value !== "object") return false
+  const candidate = value as Partial<WebPushModule>
+  return typeof candidate.generateVAPIDKeys === "function" && typeof candidate.setVapidDetails === "function" && typeof candidate.sendNotification === "function"
+}
+
 async function loadWebPush(): Promise<WebPushModule> {
-  const mod = (await import("web-push")) as WebPushModule & { default?: WebPushModule }
-  return mod.generateVAPIDKeys ? mod : (mod.default as WebPushModule)
+  const loaded: unknown = await import("web-push")
+  if (isWebPush(loaded)) return loaded
+  if (loaded && typeof loaded === "object" && "default" in loaded && isWebPush(loaded.default)) return loaded.default
+  throw new Error("Reminders are unavailable.")
 }
 
 async function readVapid(): Promise<{ publicKey: string; privateKey: string } | null> {
