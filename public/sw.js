@@ -1,5 +1,5 @@
 function safePath(raw) {
-  if (raw === "/home/grove" || raw === "/home/practice" || raw === "/home/pair") return raw
+  if (raw === "/home" || raw === "/home/grove" || raw === "/home/practice" || raw === "/home/pair") return raw
   if (typeof raw === "string" && /^\/home\/practice\/[a-z0-9-]{1,64}$/.test(raw)) return raw
   if (typeof raw === "string" && /^\/home\/buddies\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)) return raw
   return "/home"

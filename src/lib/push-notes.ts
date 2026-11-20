@@ -24,7 +24,7 @@ export type PushNote = {
 }
 
 export function noteUrlAllowed(url: string): boolean {
-  if (url === "/home/grove" || url === "/home/practice" || url === "/home/pair") return true
+  if (url === "/home" || url === "/home/grove" || url === "/home/practice" || url === "/home/pair") return true
   if (/^\/home\/practice\/[a-z0-9-]{1,64}$/.test(url)) return true
   return isBuddyWeekPath(url)
 }
