@@ -21,6 +21,16 @@ function sameKey(current: ArrayBuffer | null, next: Uint8Array): boolean {
 
 let pending: Promise<PushHold> | null = null
 
+/** Ask the server to deliver one test reminder after a short wait. */
+export async function requestDemoReminder(): Promise<"scheduled" | "failed"> {
+  const response = await appFetch("/api/push", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "demo" }),
+  })
+  return response.ok ? "scheduled" : "failed"
+}
+
 /** Register this device so a reminder can arrive after Epoch is closed. */
 export function holdPushReminders(locale: Locale): Promise<PushHold> {
   if (pending) return pending
