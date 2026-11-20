@@ -20,7 +20,7 @@ import {
 import { lessonById, presentToday } from "@/lib/practice"
 import { summarizeRewards } from "@/lib/rewards"
 import { cleanSleepClock, dueReminder, minutesNow, parseClock, reminderNotification } from "@/lib/sleep-clock"
-import { holdPushReminders, type PushHold } from "@/lib/push-client"
+import { holdPushReminders, requestDemoReminder, type PushHold } from "@/lib/push-client"
 import { armGroveReminder, armScheduledReminders, showGroveReminder, showReminder } from "@/lib/sleep-reminders"
 
 function statusLine(
@@ -70,6 +70,8 @@ export function SleepClockCard() {
   const [note, setNote] = useState<"saved" | "failed" | null>(null)
   const [permission, setPermission] = useState<ReminderPermission | null>(null)
   const [push, setPush] = useState<PushHold>("skipped")
+  const [demoPending, setDemoPending] = useState(false)
+  const [demoNote, setDemoNote] = useState<"sent" | "allow" | "home" | "failed" | null>(null)
 
   useEffect(() => {
     if (saved) {
@@ -115,6 +117,27 @@ export function SleepClockCard() {
     window.dispatchEvent(new Event("epoch-reminders"))
   }
 
+  async function sendTest() {
+    if (demoPending) return
+    setDemoPending(true)
+    setDemoNote(null)
+    let hold = await holdPushReminders(locale)
+    if (hold === "skipped") {
+      const result = await requestReminderPermission()
+      setPermission(result)
+      window.dispatchEvent(new Event("epoch-reminders"))
+      hold = result === "granted" ? await holdPushReminders(locale) : "skipped"
+    }
+    if (hold !== "armed") {
+      setDemoNote(hold === "open-only" ? "home" : "allow")
+      setDemoPending(false)
+      return
+    }
+    const result = await requestDemoReminder()
+    setDemoNote(result === "scheduled" ? "sent" : "failed")
+    setDemoPending(false)
+  }
+
   return (
     <section className="mt-8 rounded-2xl border border-border bg-card p-5">
       <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">{pick(locale, "Wake time and bedtime", "Aufwachzeit und Schlafenszeit")}</p>
@@ -125,6 +148,28 @@ export function SleepClockCard() {
           "Speichere die Zeit, zu der du aufgewacht bist, und die Zeit, zu der du schlafen willst. Diese zwei Zeiten setzen vier Erinnerungen: Schlaf zur Aufwachzeit, Bewegung fünf Stunden später, Ernährung sieben Stunden später, Stress eine Stunde vor dem Schlafen. Jede Erinnerung öffnet die Tür von heute auf diesem Zweig. Dort markierst du sie als erledigt. Wenn Erinnerungen erlaubt sind, können sie erscheinen, während Epoch geschlossen ist.",
         )}
       </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button type="button" variant="outline" className="h-11" disabled={demoPending} onClick={() => void sendTest()}>
+          {pick(locale, "Send a test reminder", "Eine Test-Erinnerung senden")}
+        </Button>
+        {permission == null || permission === "default" ? (
+          <Button type="button" variant="outline" className="h-11" onClick={() => void allow()}>
+            {pick(locale, "Allow reminders", "Erinnerungen erlauben")}
+          </Button>
+        ) : null}
+      </div>
+      {demoNote === "sent" ? (
+        <p className="mt-3 text-sm leading-6">{pick(locale, "Close Epoch. A test reminder should appear in about 20 seconds.", "Schließe Epoch. Eine Test-Erinnerung sollte in etwa 20 Sekunden erscheinen.")}</p>
+      ) : null}
+      {demoNote === "allow" ? (
+        <p className="mt-3 text-sm leading-6">{pick(locale, "Allow reminders, then send the test again.", "Erlaube Erinnerungen, dann sende den Test erneut.")}</p>
+      ) : null}
+      {demoNote === "home" ? (
+        <p className="mt-3 text-sm leading-6">{pick(locale, "Add Epoch to the home screen, open it from that icon, allow reminders, then send the test.", "Lege Epoch auf den Home-Bildschirm, öffne es von dort, erlaube Erinnerungen, und sende dann den Test.")}</p>
+      ) : null}
+      {demoNote === "failed" ? (
+        <p className="mt-3 text-sm leading-6 text-copper">{pick(locale, "The test reminder could not be sent. Wait a minute and try again.", "Die Test-Erinnerung konnte nicht gesendet werden. Warte eine Minute und versuche es erneut.")}</p>
+      ) : null}
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1 text-sm">
           {pick(locale, "Wake time", "Aufwachzeit")}
@@ -149,11 +194,6 @@ export function SleepClockCard() {
         <Button type="button" className="h-11" disabled={!valid || pending} onClick={() => void save()}>
           {pick(locale, "Save these times", "Diese Zeiten speichern")}
         </Button>
-        {permission == null || permission === "default" ? (
-          <Button type="button" variant="outline" className="h-11" onClick={() => void allow()}>
-            {pick(locale, "Allow reminders", "Erinnerungen erlauben")}
-          </Button>
-        ) : null}
       </div>
       <p className="mt-3 text-sm leading-6 text-muted-foreground">{statusLine(locale, note, permission, Boolean(saved), push)}</p>
     </section>

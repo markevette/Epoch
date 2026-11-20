@@ -48,11 +48,17 @@ function firstName(name: string, locale: Locale): string {
   return clean.slice(0, 40) || (locale === "de" ? "Jemand" : "Someone")
 }
 
+function isWebPush(value: unknown): value is WebPushModule {
+  if (!value || typeof value !== "object") return false
+  const candidate = value as Partial<WebPushModule>
+  return typeof candidate.generateVAPIDKeys === "function" && typeof candidate.setVapidDetails === "function" && typeof candidate.sendNotification === "function"
+}
+
 async function loadWebPush(): Promise<WebPushModule> {
-  const { createRequire } = await import("node:module")
-  const require = createRequire(`${process.cwd()}/package.json`)
-  const name = "web-" + "push"
-  return require(name) as WebPushModule
+  const loaded: unknown = await import("web-push")
+  if (isWebPush(loaded)) return loaded
+  if (loaded && typeof loaded === "object" && "default" in loaded && isWebPush(loaded.default)) return loaded.default
+  throw new Error("Reminders are unavailable.")
 }
 
 async function readVapid(): Promise<{ publicKey: string; privateKey: string } | null> {
@@ -267,8 +273,30 @@ async function devicesFor(userId: string): Promise<SubRow[]> {
   )
 }
 
-async function sendToDevices(userId: string, noteFor: (locale: Locale) => PushNote): Promise<void> {
+const DEMO_WAIT_MS = 20_000
+const demoTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+function demoNote(locale: Locale): PushNote {
+  return locale === "de"
+    ? {
+        title: "Epoch erreicht dieses Gerät",
+        body: "Diese Erinnerung kam an, während die App geschlossen war.",
+        tag: "epoch-demo",
+        url: "/home/practice",
+        lang: "de",
+      }
+    : {
+        title: "Epoch can reach this device",
+        body: "This reminder arrived while the app was closed.",
+        tag: "epoch-demo",
+        url: "/home/practice",
+        lang: "en",
+      }
+}
+
+async function sendToDevices(userId: string, noteFor: (locale: Locale) => PushNote, sender: PushSender = deliverPush): Promise<number> {
   const rows = await devicesFor(userId)
+  let sent = 0
   for (const row of rows) {
     if (!pushEndpointAllowed(row.endpoint)) {
       await qrun("DELETE FROM push_subscriptions WHERE id = ?", row.id)
@@ -277,11 +305,35 @@ async function sendToDevices(userId: string, noteFor: (locale: Locale) => PushNo
     const note = noteFor(cleanLocale(row.locale) ?? "en")
     if (!noteUrlAllowed(note.url)) continue
     try {
-      await deliverPush(row, note)
+      await sender(row, note)
+      sent += 1
     } catch (error) {
       if (pushGone(error)) await qrun("DELETE FROM push_subscriptions WHERE id = ?", row.id)
     }
   }
+  return sent
+}
+
+/** A fixed reminder for this member’s own devices. The text is not chosen by the caller. */
+export async function sendDemoPush(userId: string, sender: PushSender = deliverPush): Promise<{ sent: number } | { error: string }> {
+  const sent = await sendToDevices(userId, demoNote, sender)
+  if (sent === 0) return { error: "Allow reminders on this device first." }
+  return { sent }
+}
+
+/** Deliver the test after a short wait, so the app can be closed first. */
+export async function scheduleDemoPush(userId: string): Promise<{ seconds: number } | { error: string }> {
+  const rows = await devicesFor(userId)
+  if (!rows.some((row) => pushEndpointAllowed(row.endpoint))) return { error: "Allow reminders on this device first." }
+  const previous = demoTimers.get(userId)
+  if (previous) clearTimeout(previous)
+    const handle = setTimeout(() => {
+      demoTimers.delete(userId)
+      void sendDemoPush(userId).catch(() => {})
+    }, DEMO_WAIT_MS)
+    handle.unref()
+    demoTimers.set(userId, handle)
+  return { seconds: DEMO_WAIT_MS / 1000 }
 }
 
 export async function notifyBuddyLine(input: {

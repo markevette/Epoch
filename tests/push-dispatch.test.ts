@@ -4,7 +4,7 @@ import { mkdtempSync } from "fs"
 import { tmpdir } from "os"
 import path from "path"
 import { describe, it } from "node:test"
-import { savePushSubscription, dispatchDuePushes, type PushSender } from "../src/lib/push-dispatch"
+import { savePushSubscription, dispatchDuePushes, sendDemoPush, type PushSender } from "../src/lib/push-dispatch"
 import type { PushNote } from "../src/lib/push-notes"
 import { qall, qrun, resetDbForTests } from "../src/lib/sql"
 
@@ -69,5 +69,45 @@ describe("push delivery", () => {
 
     const left = await qall<{ endpoint: string }>("SELECT endpoint FROM push_subscriptions")
     assert.deepEqual(left.map((row) => row.endpoint), ["https://fcm.googleapis.com/fcm/send/mina"])
+  })
+
+  it("sends one fixed test reminder to that member’s device only", async () => {
+    const owner = randomUUID()
+    const other = randomUUID()
+    const profile = JSON.stringify({ sleepClock: { wake: "07:00", bed: "23:00" }, rewards: [], nudgePoints: 0 })
+    for (const [id, email] of [[owner, "owner@example.test"], [other, "other@example.test"]] as const) {
+      await qrun(
+        `INSERT INTO users (id, email, password_hash, name, role, profile_json, created_at) VALUES (?, ?, 'hash', 'Mina', 'member', ?, ?)`,
+        id,
+        email,
+        profile,
+        "2026-11-19T00:00:00.000Z",
+      )
+    }
+    await savePushSubscription(owner, {
+      endpoint: "https://fcm.googleapis.com/fcm/send/owner",
+      ...keys,
+      locale: "de",
+      timeZone: "Europe/Berlin",
+    })
+    await savePushSubscription(other, {
+      endpoint: "https://fcm.googleapis.com/fcm/send/other",
+      ...keys,
+      locale: "en",
+      timeZone: "Europe/Berlin",
+    })
+    const sent: PushNote[] = []
+    const sender: PushSender = async (_target, note) => {
+      sent.push(note)
+    }
+    const missing = await sendDemoPush(randomUUID(), sender)
+    assert.deepEqual(missing, { error: "Allow reminders on this device first." })
+    const delivered = await sendDemoPush(owner, sender)
+    assert.deepEqual(delivered, { sent: 1 })
+    assert.equal(sent.length, 1)
+    assert.equal(sent[0]?.tag, "epoch-demo")
+    assert.equal(sent[0]?.url, "/home/practice")
+    assert.equal(sent[0]?.lang, "de")
+    assert.match(sent[0]?.body ?? "", /geschlossen/)
   })
 })
