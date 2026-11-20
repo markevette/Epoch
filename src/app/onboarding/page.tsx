@@ -180,8 +180,8 @@ export default function OnboardingPage() {
             <p className="text-sm leading-6 text-muted-foreground">
               {pick(
                 locale,
-                "Wake time and bedtime stay on this file. Allow reminders so today’s lesson can appear at those times on this device.",
-                "Aufwachzeit und Schlafenszeit bleiben auf dieser Akte. Erlaube Erinnerungen, dann kann die Übung von heute zu diesen Zeiten auf diesem Gerät erscheinen.",
+                "Wake time and bedtime stay on this file. Allow reminders so today’s lesson can appear at those times, including while Epoch is closed.",
+                "Aufwachzeit und Schlafenszeit bleiben auf dieser Akte. Erlaube Erinnerungen, dann kann die Übung von heute zu diesen Zeiten erscheinen, auch während Epoch geschlossen ist.",
               )}
             </p>
             <div className="grid gap-4 sm:grid-cols-2">

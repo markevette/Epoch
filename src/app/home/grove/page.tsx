@@ -201,8 +201,8 @@ export default function GrovePage() {
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           {pick(
             locale,
-            "At 18:00 a reminder can ask you to collect sun or to pour, when there is something to do. It is the same kind of reminder as the practice doors. Chrome and the installed app can show it while Epoch is closed.",
-            "Um 18:00 kann eine Erinnerung zum Sammeln oder Gießen kommen, wenn etwas zu tun ist. Es ist dieselbe Art Erinnerung wie bei den Übungstüren. Chrome und die installierte App können sie zeigen, während Epoch geschlossen ist.",
+            "At 18:00 a reminder can ask you to collect sun or to pour, when there is something to do. It is the same kind of reminder as the practice doors. After reminders are allowed, it can appear on this device while Epoch is closed.",
+            "Um 18:00 kann eine Erinnerung zum Sammeln oder Gießen kommen, wenn etwas zu tun ist. Es ist dieselbe Art Erinnerung wie bei den Übungstüren. Wenn Erinnerungen erlaubt sind, kann sie auf diesem Gerät erscheinen, während Epoch geschlossen ist.",
           )}
         </p>
         {permission === "default" ? (

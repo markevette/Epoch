@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["pg"],
+  serverExternalPackages: ["pg", "web-push"],
   transpilePackages: ["@capacitor/core", "@capacitor/local-notifications", "@capacitor/app"],
   async redirects() {
     return [

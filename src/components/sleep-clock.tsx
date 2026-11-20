@@ -20,6 +20,7 @@ import {
 import { lessonById, presentToday } from "@/lib/practice"
 import { summarizeRewards } from "@/lib/rewards"
 import { cleanSleepClock, dueReminder, minutesNow, parseClock, reminderNotification } from "@/lib/sleep-clock"
+import { holdPushReminders, type PushHold } from "@/lib/push-client"
 import { armGroveReminder, armScheduledReminders, showGroveReminder, showReminder } from "@/lib/sleep-reminders"
 
 function statusLine(
@@ -27,8 +28,23 @@ function statusLine(
   note: "saved" | "failed" | null,
   permission: ReminderPermission | null,
   saved: boolean,
+  push: PushHold,
 ) {
   if (note === "failed") return pick(locale, "Those times stayed off the file.", "Diese Zeiten blieben von der Akte.")
+  if (permission === "granted" && push === "armed") {
+    return pick(
+      locale,
+      "These times stay on your file. Reminders can appear on this device while Epoch is closed.",
+      "Diese Zeiten bleiben auf deiner Akte. Erinnerungen können auf diesem Gerät erscheinen, während Epoch geschlossen ist.",
+    )
+  }
+  if (permission === "granted" && push === "open-only") {
+    return pick(
+      locale,
+      "These times stay on your file. This browser shows reminders while Epoch is open. Add Epoch to the home screen so they can arrive while it is closed.",
+      "Diese Zeiten bleiben auf deiner Akte. Dieser Browser zeigt Erinnerungen, solange Epoch offen ist. Lege Epoch auf den Home-Bildschirm, dann können sie kommen, während es geschlossen ist.",
+    )
+  }
   if (permission === "granted") {
     return pick(locale, "These times stay on your file. Reminders are on for this device.", "Diese Zeiten bleiben auf deiner Akte. Erinnerungen sind auf diesem Gerät an.")
   }
@@ -53,6 +69,7 @@ export function SleepClockCard() {
   const [pending, setPending] = useState(false)
   const [note, setNote] = useState<"saved" | "failed" | null>(null)
   const [permission, setPermission] = useState<ReminderPermission | null>(null)
+  const [push, setPush] = useState<PushHold>("skipped")
 
   useEffect(() => {
     if (saved) {
@@ -64,6 +81,21 @@ export function SleepClockCard() {
   useEffect(() => {
     void currentReminderPermission().then(setPermission)
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const sync = () => {
+      void holdPushReminders(locale).then((next) => {
+        if (!cancelled) setPush(next)
+      })
+    }
+    sync()
+    window.addEventListener("epoch-reminders", sync)
+    return () => {
+      cancelled = true
+      window.removeEventListener("epoch-reminders", sync)
+    }
+  }, [locale])
 
   if (!profile) return null
   const valid = parseClock(wake) != null && parseClock(bed) != null
@@ -89,8 +121,8 @@ export function SleepClockCard() {
       <p className="mt-2 max-w-xl text-sm leading-6">
         {pick(
           locale,
-          "Save the time you woke up, and the time you plan to sleep. Those two times place four reminders: sleep at wake, movement five hours later, nutrition seven hours later, stress one hour before bed. Each reminder opens today’s door on that branch. You mark it done there.",
-          "Speichere die Zeit, zu der du aufgewacht bist, und die Zeit, zu der du schlafen willst. Diese zwei Zeiten setzen vier Erinnerungen: Schlaf zur Aufwachzeit, Bewegung fünf Stunden später, Ernährung sieben Stunden später, Stress eine Stunde vor dem Schlafen. Jede Erinnerung öffnet die Tür von heute auf diesem Zweig. Dort markierst du sie als erledigt.",
+          "Save the time you woke up, and the time you plan to sleep. Those two times place four reminders: sleep at wake, movement five hours later, nutrition seven hours later, stress one hour before bed. Each reminder opens today’s door on that branch. You mark it done there. Once reminders are allowed, they can appear while Epoch is closed.",
+          "Speichere die Zeit, zu der du aufgewacht bist, und die Zeit, zu der du schlafen willst. Diese zwei Zeiten setzen vier Erinnerungen: Schlaf zur Aufwachzeit, Bewegung fünf Stunden später, Ernährung sieben Stunden später, Stress eine Stunde vor dem Schlafen. Jede Erinnerung öffnet die Tür von heute auf diesem Zweig. Dort markierst du sie als erledigt. Wenn Erinnerungen erlaubt sind, können sie erscheinen, während Epoch geschlossen ist.",
         )}
       </p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -123,7 +155,7 @@ export function SleepClockCard() {
           </Button>
         ) : null}
       </div>
-      <p className="mt-3 text-sm leading-6 text-muted-foreground">{statusLine(locale, note, permission, Boolean(saved))}</p>
+      <p className="mt-3 text-sm leading-6 text-muted-foreground">{statusLine(locale, note, permission, Boolean(saved), push)}</p>
     </section>
   )
 }
@@ -138,7 +170,7 @@ export function SleepReminderHost() {
     if (!("serviceWorker" in navigator)) return
     const onMessage = (event: MessageEvent) => {
       const url = event.data?.type === "epoch-open" ? event.data.url : null
-      if (url === "/home/grove" || (typeof url === "string" && isBuddyWeekPath(url))) {
+      if (url === "/home/grove" || url === "/home/pair" || url === "/home/practice" || (typeof url === "string" && isBuddyWeekPath(url))) {
         router.push(url)
         return
       }
@@ -154,6 +186,13 @@ export function SleepReminderHost() {
   useEffect(() => onNativeReminderOpen((url) => router.push(url)), [router])
 
   useEffect(() => onNativeAppResume(() => window.dispatchEvent(new Event("epoch-reminders"))), [])
+
+  useEffect(() => {
+    void holdPushReminders(locale)
+    const onArm = () => void holdPushReminders(locale)
+    window.addEventListener("epoch-reminders", onArm)
+    return () => window.removeEventListener("epoch-reminders", onArm)
+  }, [locale])
 
   useEffect(() => {
     const root = document.documentElement
