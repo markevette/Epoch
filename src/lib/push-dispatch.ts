@@ -370,9 +370,66 @@ export async function notifyBuddyNudge(input: { toUserId: string; fromName: stri
   })
 }
 
+const CHECKIN_NAME = "checkin_how_are_you"
+const CHECKIN_TAG = "epoch-checkin"
+const CHECKIN_DAY = "once"
+
+const howAreYou: PushNote = {
+  title: "How are you doing today?",
+  body: "",
+  tag: CHECKIN_TAG,
+  url: "/home",
+  lang: "en",
+}
+
+async function checkInCutoff(): Promise<string> {
+  const rows = await qall<{ value: string }>("SELECT value FROM app_secrets WHERE name = ?", CHECKIN_NAME)
+  if (rows[0]?.value) return rows[0].value
+  const now = new Date().toISOString()
+  try {
+    await qrun("INSERT INTO app_secrets (name, value) VALUES (?, ?)", CHECKIN_NAME, now)
+  } catch {
+    // Another process stored the cutoff.
+  }
+  const stored = await qall<{ value: string }>("SELECT value FROM app_secrets WHERE name = ?", CHECKIN_NAME)
+  return stored[0]?.value ?? now
+}
+
+/** One question for the devices already registered. Later devices are left out. */
+export async function dispatchHowAreYou(sender: PushSender = deliverPush): Promise<number> {
+  const cutoff = await checkInCutoff()
+  if (cutoff === "done") return 0
+  const rows = await qall<SubRow>(
+    `SELECT id, user_id, endpoint, p256dh, auth, locale, time_zone, NULL AS profile_json
+     FROM push_subscriptions WHERE updated_at <= ? ORDER BY id`,
+    cutoff,
+  )
+  let pending = 0
+  let sent = 0
+  for (const row of rows) {
+    if (!pushEndpointAllowed(row.endpoint)) {
+      await qrun("DELETE FROM push_subscriptions WHERE id = ?", row.id)
+      continue
+    }
+    if (!noteUrlAllowed(howAreYou.url)) continue
+    if (!(await claimSend(row.id, CHECKIN_TAG, CHECKIN_DAY))) continue
+    try {
+      await sender({ id: row.id, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth }, howAreYou)
+      sent += 1
+    } catch (error) {
+      pending += 1
+      if (pushGone(error)) await qrun("DELETE FROM push_subscriptions WHERE id = ?", row.id)
+      else await qrun("DELETE FROM push_sent WHERE subscription_id = ? AND tag = ? AND sent_on = ?", row.id, CHECKIN_TAG, CHECKIN_DAY)
+    }
+  }
+  if (pending === 0) await qrun("UPDATE app_secrets SET value = 'done' WHERE name = ?", CHECKIN_NAME)
+  return sent
+}
+
 export function startPushLoop(): void {
   pump.epochPushTick = () => {
     void dispatchDuePushes().catch(() => {})
+    void dispatchHowAreYou().catch(() => {})
   }
   if (pump.epochPushStarted) return
   pump.epochPushStarted = true

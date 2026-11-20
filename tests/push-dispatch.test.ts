@@ -4,7 +4,7 @@ import { mkdtempSync } from "fs"
 import { tmpdir } from "os"
 import path from "path"
 import { describe, it } from "node:test"
-import { savePushSubscription, dispatchDuePushes, sendDemoPush, type PushSender } from "../src/lib/push-dispatch"
+import { savePushSubscription, dispatchDuePushes, dispatchHowAreYou, sendDemoPush, type PushSender } from "../src/lib/push-dispatch"
 import type { PushNote } from "../src/lib/push-notes"
 import { qall, qrun, resetDbForTests } from "../src/lib/sql"
 
@@ -109,5 +109,38 @@ describe("push delivery", () => {
     assert.equal(sent[0]?.url, "/home/practice")
     assert.equal(sent[0]?.lang, "de")
     assert.match(sent[0]?.body ?? "", /geschlossen/)
+  })
+
+  it("asks each device already registered, once, and skips one that arrives later", async () => {
+    const before = await qall<{ endpoint: string }>("SELECT endpoint FROM push_subscriptions")
+    const sent: PushNote[] = []
+    const sender: PushSender = async (_target, note) => {
+      sent.push(note)
+    }
+    const first = await dispatchHowAreYou(sender)
+    assert.equal(first, before.length)
+    assert.ok(first > 0)
+    for (const note of sent) {
+      assert.equal(note.title, "How are you doing today?")
+      assert.equal(note.body, "")
+      assert.equal(note.tag, "epoch-checkin")
+      assert.equal(note.url, "/home")
+    }
+    assert.equal(await dispatchHowAreYou(sender), 0)
+    const late = randomUUID()
+    await qrun(
+      `INSERT INTO users (id, email, password_hash, name, role, profile_json, created_at) VALUES (?, ?, 'hash', 'Mina', 'member', '{}', ?)`,
+      late,
+      "late@example.test",
+      "2026-11-19T00:00:00.000Z",
+    )
+    await savePushSubscription(late, {
+      endpoint: "https://fcm.googleapis.com/fcm/send/late",
+      ...keys,
+      locale: "en",
+      timeZone: "Europe/Berlin",
+    })
+    assert.equal(await dispatchHowAreYou(sender), 0)
+    assert.equal(sent.length, first)
   })
 })
