@@ -17,6 +17,7 @@ import {
   type PairSide,
   type PairSnapshot,
 } from "./pairs"
+import { notifyBuddyLine, notifyBuddyNudge } from "./push-dispatch"
 import type { Profile } from "./types"
 
 const INVITE_DAYS = 7
@@ -331,6 +332,13 @@ export async function nudgePair(userId: string, pairId: string, offset: number |
   if ("error" in evaluated) return evaluated
   if (!evaluated.evaluation.canNudge) return { error: "A nudge can wait. One line a day, and only while their morning is still open." }
   await qrun("UPDATE pairs SET nudge_date = ?, nudge_by = ? WHERE id = ?", evaluated.evaluation.focusDate, evaluated.you, row.id)
+  const otherId = row.user_a === userId ? row.user_b : row.user_a
+  const from = await personFile(userId)
+  try {
+    await notifyBuddyNudge({ toUserId: otherId, fromName: from?.name ?? "", pairId: row.id })
+  } catch {
+    // The nudge is saved. A closed app can miss this one pop-up.
+  }
   return { ok: true }
 }
 
@@ -658,6 +666,11 @@ export async function sendScoreNudge(
     })
   } catch {
     return { error: "You already sent a line today." }
+  }
+  try {
+    await notifyBuddyLine({ toUserId: opened.otherId, fromName: profile.name, english: choice.text, pairId })
+  } catch {
+    // The line is saved. A closed app can miss this one pop-up.
   }
   return await buddyWeek(userId, pairId, offset, now)
 }

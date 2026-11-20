@@ -161,7 +161,7 @@ export function onNativeReminderOpen(open: (url: string) => void): () => void {
   let handle: { remove: () => Promise<void> } | null = null
   void LocalNotifications.addListener("localNotificationActionPerformed", (event) => {
     const url = event.notification.extra?.url
-    if (typeof url === "string" && (url === "/home/grove" || url.startsWith("/home/practice/") || isBuddyWeekPath(url))) open(url)
+    if (typeof url === "string" && (url === "/home/grove" || url === "/home/pair" || url.startsWith("/home/practice/") || isBuddyWeekPath(url))) open(url)
   }).then((listener) => {
     handle = listener
   })

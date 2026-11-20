@@ -127,16 +127,16 @@ export default function BuddiesPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto min-w-0 max-w-3xl overflow-x-hidden px-4 py-6 md:px-8 md:py-10">
       <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">Buddies</p>
       <h1 className="mt-2 font-display text-4xl tracking-tight md:text-5xl">{pick(locale, "Find a person by their code.", "Finde eine Person über ihren Code.")}</h1>
       <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
         {pick(locale, "A search returns that exact code, or it says no such ID exists. Pair streak asks them to accept or reject, and only while you both have room. Each pair keeps its own morning count. Open a buddy’s week to compare the last 7 daily scores.", "Eine Suche gibt genau diesen Code zurück, oder sie sagt, diese ID gibt es nicht. Paar-Zählung bittet um Annahme oder Ablehnung, und nur solange ihr beide Platz habt. Jedes Paar hält seine eigene Morgenzählung. Öffne die Woche eines Buddies, um die letzten 7 Tageswerte zu vergleichen.")}
       </p>
 
-      <section className="mt-8 rounded-2xl border border-border bg-card p-5">
+      <section className="mt-8 min-w-0 overflow-hidden rounded-2xl border border-border bg-card p-5">
         <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">{pick(locale, "Your code", "Dein Code")}</p>
-        <p className="mt-2 font-display text-5xl tracking-[0.18em]">{home?.code ?? "······"}</p>
+        <p className="mt-2 max-w-full break-all rounded-xl border border-border bg-background px-3 py-3 font-display text-[clamp(1.15rem,6vw,2.75rem)] leading-tight tracking-[0.08em] sm:tracking-[0.12em]">{home?.code ?? "······"}</p>
         <p className="mt-2 text-sm text-muted-foreground">
           {pick(locale, "Hand this to someone. They type it here on their side.", "Gib das jemandem. Die Person tippt es hier auf ihrer Seite ein.")}{" "}
           {home ? pick(locale, `${home.pairCount} of ${home.pairCap} pairs.`, `${home.pairCount} von ${home.pairCap} Paaren.`) : ""}
@@ -157,12 +157,12 @@ export default function BuddiesPage() {
         </div>
       </section>
 
-      <form className="mt-6 rounded-2xl border border-border bg-card p-5" onSubmit={(event) => void search(event)}>
+      <form className="mt-6 min-w-0 overflow-hidden rounded-2xl border border-border bg-card p-5" onSubmit={(event) => void search(event)}>
         <Label htmlFor="buddy-code">{pick(locale, "Their code", "Deren Code")}</Label>
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+        <div className="mt-2 flex min-w-0 flex-col gap-2 sm:flex-row">
           <Input
             id="buddy-code"
-            className="h-11 uppercase tracking-[0.14em]"
+            className="h-11 min-w-0 w-full flex-1 uppercase tracking-[0.08em] sm:tracking-[0.12em]"
             value={query}
             autoCapitalize="characters"
             autoCorrect="off"
@@ -182,7 +182,7 @@ export default function BuddiesPage() {
               </Button>
             ) : null}
             <div>
-              <p className="font-display text-2xl tracking-[0.12em]">{hit.code}</p>
+              <p className="max-w-full break-all font-display text-xl tracking-[0.08em] sm:text-2xl">{hit.code}</p>
               <p className="mt-1 text-sm">{hit.name} · @{hit.handle}</p>
               {hit.reason ? <p className="mt-1 text-sm text-muted-foreground">{translateReason(locale, hit.reason)}</p> : null}
             </div>
@@ -214,7 +214,7 @@ export default function BuddiesPage() {
             <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3">
               <div>
                 <p className="font-medium">{pick(locale, `${firstName(row.name)} asked to pair`, `${firstName(row.name)} möchte ein Paar`)}</p>
-                <p className="text-sm text-muted-foreground">{row.code} · @{row.handle}</p>
+                <p className="break-all text-sm text-muted-foreground">{row.code} · @{row.handle}</p>
               </div>
               <div className="flex gap-2">
                 <Button className="h-10" disabled={pending !== null} onClick={() => void decide("accept", row.id)}>
@@ -231,7 +231,7 @@ export default function BuddiesPage() {
               {row.status === "pending"
                 ? pick(locale, `Waiting for ${firstName(row.name)} to accept.`, `Warten, bis ${firstName(row.name)} annimmt.`)
                 : pick(locale, `${firstName(row.name)} declined the request.`, `${firstName(row.name)} hat die Anfrage abgelehnt.`)}
-              <span className="mt-1 block text-muted-foreground">{row.code} · @{row.handle}</span>
+              <span className="mt-1 block break-all text-muted-foreground">{row.code} · @{row.handle}</span>
             </li>
           ))}
         </ul>

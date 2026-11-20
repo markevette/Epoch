@@ -145,6 +145,29 @@ const SCHEMA = `
       hit_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS rate_hits_lookup ON rate_hits(bucket, hit_key, hit_at);
+    CREATE TABLE IF NOT EXISTS app_secrets (
+      name TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      endpoint TEXT NOT NULL UNIQUE,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      locale TEXT NOT NULL,
+      time_zone TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS push_subscriptions_user ON push_subscriptions(user_id, updated_at);
+    CREATE TABLE IF NOT EXISTS push_sent (
+      id TEXT PRIMARY KEY,
+      subscription_id TEXT NOT NULL REFERENCES push_subscriptions(id) ON DELETE CASCADE,
+      tag TEXT NOT NULL,
+      sent_on TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE (subscription_id, tag, sent_on)
+    );
 `
 
 const txClient = new AsyncLocalStorage<PoolClient>()
