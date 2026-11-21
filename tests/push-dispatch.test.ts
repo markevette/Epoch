@@ -101,7 +101,7 @@ describe("push delivery", () => {
       sent.push(note)
     }
     const missing = await sendDemoPush(randomUUID(), sender)
-    assert.deepEqual(missing, { error: "Allow reminders on this device first." })
+    assert.deepEqual(missing, { error: "Allow reminders on this device first.", refresh: true })
     const delivered = await sendDemoPush(owner, sender)
     assert.deepEqual(delivered, { sent: 1 })
     assert.equal(sent.length, 1)
@@ -109,6 +109,18 @@ describe("push delivery", () => {
     assert.equal(sent[0]?.url, "/home/practice")
     assert.equal(sent[0]?.lang, "de")
     assert.match(sent[0]?.body ?? "", /geschlossen/)
+    const refused: PushSender = async () => {
+      throw new Error("push service refused")
+    }
+    const failed = await sendDemoPush(owner, refused)
+    assert.deepEqual(failed, { error: "The reminder could not be delivered to this device." })
+    const expired: PushSender = async () => {
+      const error = new Error("gone") as Error & { statusCode?: number }
+      error.statusCode = 410
+      throw error
+    }
+    const refresh = await sendDemoPush(owner, expired)
+    assert.equal("refresh" in refresh && refresh.refresh, true)
   })
 
   it("asks each device already registered, once, and skips one that arrives later", async () => {

@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/auth-server"
-import { pushPublicKey, savePushSubscription, scheduleDemoPush } from "@/lib/push-dispatch"
+import { pushPublicKey, savePushSubscription, sendDemoPush } from "@/lib/push-dispatch"
 import { cleanPushSubscription } from "@/lib/push-endpoint"
 import { HOUR_MS, QUARTER_HOUR_MS, refuseIfLimited } from "@/lib/rate-limit"
 
@@ -18,9 +18,9 @@ export async function POST(request: Request) {
   if (body && typeof body === "object" && (body as { action?: unknown }).action === "demo") {
     const blocked = await refuseIfLimited([{ name: "push-demo", key: authed.id, max: 4, windowMs: HOUR_MS }])
     if (blocked) return blocked
-    const scheduled = await scheduleDemoPush(authed.id)
-    if ("error" in scheduled) return Response.json(scheduled, { status: 400 })
-    return Response.json(scheduled)
+    const delivered = await sendDemoPush(authed.id)
+    if ("error" in delivered) return Response.json(delivered, { status: 400 })
+    return Response.json(delivered)
   }
   const blocked = await refuseIfLimited([{ name: "push-save", key: authed.id, max: 30, windowMs: QUARTER_HOUR_MS }])
   if (blocked) return blocked

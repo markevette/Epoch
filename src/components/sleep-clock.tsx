@@ -20,7 +20,7 @@ import {
 import { lessonById, presentToday } from "@/lib/practice"
 import { summarizeRewards } from "@/lib/rewards"
 import { cleanSleepClock, dueReminder, minutesNow, parseClock, reminderNotification } from "@/lib/sleep-clock"
-import { holdPushReminders, requestDemoReminder, type PushHold } from "@/lib/push-client"
+import { holdPushReminders, refreshPushSubscription, requestDemoReminder, type PushHold } from "@/lib/push-client"
 import { armGroveReminder, armScheduledReminders, showGroveReminder, showReminder } from "@/lib/sleep-reminders"
 
 function statusLine(
@@ -121,20 +121,32 @@ export function SleepClockCard() {
     if (demoPending) return
     setDemoPending(true)
     setDemoNote(null)
-    let hold = await holdPushReminders(locale)
-    if (hold === "skipped") {
-      const result = await requestReminderPermission()
-      setPermission(result)
-      window.dispatchEvent(new Event("epoch-reminders"))
-      hold = result === "granted" ? await holdPushReminders(locale) : "skipped"
+    const result = await requestReminderPermission()
+    setPermission(result)
+    window.dispatchEvent(new Event("epoch-reminders"))
+    if (result === "unsupported") {
+      setDemoNote("home")
+      setDemoPending(false)
+      return
     }
+    if (result !== "granted") {
+      setDemoNote("allow")
+      setDemoPending(false)
+      return
+    }
+    const hold = await holdPushReminders(locale)
     if (hold !== "armed") {
       setDemoNote(hold === "open-only" ? "home" : "allow")
       setDemoPending(false)
       return
     }
-    const result = await requestDemoReminder()
-    setDemoNote(result === "scheduled" ? "sent" : "failed")
+    let sent = await requestDemoReminder()
+    if (sent === "refresh") {
+      const again = await refreshPushSubscription(locale)
+      sent = again === "armed" ? await requestDemoReminder() : "failed"
+      if (sent === "refresh") sent = "failed"
+    }
+    setDemoNote(sent === "sent" ? "sent" : "failed")
     setDemoPending(false)
   }
 
@@ -159,7 +171,7 @@ export function SleepClockCard() {
         ) : null}
       </div>
       {demoNote === "sent" ? (
-        <p className="mt-3 text-sm leading-6">{pick(locale, "Close Epoch. A test reminder should appear in about 20 seconds.", "Schließe Epoch. Eine Test-Erinnerung sollte in etwa 20 Sekunden erscheinen.")}</p>
+        <p className="mt-3 text-sm leading-6">{pick(locale, "Sent. It should appear on this device, including after you close Epoch.", "Gesendet. Sie sollte auf diesem Gerät erscheinen, auch nachdem du Epoch schließt.")}</p>
       ) : null}
       {demoNote === "allow" ? (
         <p className="mt-3 text-sm leading-6">{pick(locale, "Allow reminders, then send the test again.", "Erlaube Erinnerungen, dann sende den Test erneut.")}</p>

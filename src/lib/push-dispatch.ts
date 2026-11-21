@@ -273,9 +273,6 @@ async function devicesFor(userId: string): Promise<SubRow[]> {
   )
 }
 
-const DEMO_WAIT_MS = 20_000
-const demoTimers = new Map<string, ReturnType<typeof setTimeout>>()
-
 function demoNote(locale: Locale): PushNote {
   return locale === "de"
     ? {
@@ -294,9 +291,10 @@ function demoNote(locale: Locale): PushNote {
       }
 }
 
-async function sendToDevices(userId: string, noteFor: (locale: Locale) => PushNote, sender: PushSender = deliverPush): Promise<number> {
+async function sendToDevices(userId: string, noteFor: (locale: Locale) => PushNote, sender: PushSender = deliverPush): Promise<{ sent: number; gone: number }> {
   const rows = await devicesFor(userId)
   let sent = 0
+  let gone = 0
   for (const row of rows) {
     if (!pushEndpointAllowed(row.endpoint)) {
       await qrun("DELETE FROM push_subscriptions WHERE id = ?", row.id)
@@ -308,32 +306,23 @@ async function sendToDevices(userId: string, noteFor: (locale: Locale) => PushNo
       await sender(row, note)
       sent += 1
     } catch (error) {
-      if (pushGone(error)) await qrun("DELETE FROM push_subscriptions WHERE id = ?", row.id)
+      if (pushGone(error)) {
+        gone += 1
+        await qrun("DELETE FROM push_subscriptions WHERE id = ?", row.id)
+      }
     }
   }
-  return sent
+  return { sent, gone }
 }
 
 /** A fixed reminder for this member’s own devices. The text is not chosen by the caller. */
-export async function sendDemoPush(userId: string, sender: PushSender = deliverPush): Promise<{ sent: number } | { error: string }> {
-  const sent = await sendToDevices(userId, demoNote, sender)
-  if (sent === 0) return { error: "Allow reminders on this device first." }
-  return { sent }
-}
-
-/** Deliver the test after a short wait, so the app can be closed first. */
-export async function scheduleDemoPush(userId: string): Promise<{ seconds: number } | { error: string }> {
+export async function sendDemoPush(userId: string, sender: PushSender = deliverPush): Promise<{ sent: number } | { error: string; refresh?: boolean }> {
   const rows = await devicesFor(userId)
-  if (!rows.some((row) => pushEndpointAllowed(row.endpoint))) return { error: "Allow reminders on this device first." }
-  const previous = demoTimers.get(userId)
-  if (previous) clearTimeout(previous)
-    const handle = setTimeout(() => {
-      demoTimers.delete(userId)
-      void sendDemoPush(userId).catch(() => {})
-    }, DEMO_WAIT_MS)
-    handle.unref()
-    demoTimers.set(userId, handle)
-  return { seconds: DEMO_WAIT_MS / 1000 }
+  if (!rows.some((row) => pushEndpointAllowed(row.endpoint))) return { error: "Allow reminders on this device first.", refresh: true }
+  const result = await sendToDevices(userId, demoNote, sender)
+  if (result.sent > 0) return { sent: result.sent }
+  if (result.gone > 0) return { error: "This device needs a new reminder registration.", refresh: true }
+  return { error: "The reminder could not be delivered to this device." }
 }
 
 export async function notifyBuddyLine(input: {
