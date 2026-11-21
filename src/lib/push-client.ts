@@ -21,14 +21,28 @@ function sameKey(current: ArrayBuffer | null, next: Uint8Array): boolean {
 
 let pending: Promise<PushHold> | null = null
 
-/** Ask the server to deliver one test reminder after a short wait. */
-export async function requestDemoReminder(): Promise<"scheduled" | "failed"> {
+/** Ask the server to deliver one test reminder to this member’s devices now. */
+export async function requestDemoReminder(): Promise<"sent" | "failed" | "refresh"> {
   const response = await appFetch("/api/push", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "demo" }),
   })
-  return response.ok ? "scheduled" : "failed"
+  if (response.ok) return "sent"
+  const body = (await response.json().catch(() => null)) as { refresh?: boolean } | null
+  return body?.refresh ? "refresh" : "failed"
+}
+
+/** Drop a dead registration and store a new one. */
+export async function refreshPushSubscription(locale: Locale): Promise<PushHold> {
+  try {
+    const registration = await navigator.serviceWorker.ready
+    const existing = await registration.pushManager.getSubscription()
+    if (existing) await existing.unsubscribe()
+  } catch {
+    // A new registration can still be stored.
+  }
+  return holdPushReminders(locale)
 }
 
 /** Register this device so a reminder can arrive after Epoch is closed. */
@@ -46,17 +60,23 @@ async function arm(locale: Locale): Promise<PushHold> {
   if (Notification.permission !== "granted") return "skipped"
   try {
     const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" })
+    const ready = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<ServiceWorkerRegistration | null>((resolve) => setTimeout(() => resolve(null), 8000)),
+    ])
+    const active = ready ?? (registration.active ? registration : null)
+    if (!active) return "open-only"
     const response = await appFetch("/api/push")
     const body = (await response.json().catch(() => null)) as { publicKey?: string } | null
     if (!response.ok || !body?.publicKey) return "open-only"
     const key = urlBase64ToUint8Array(body.publicKey)
-    let subscription = await registration.pushManager.getSubscription()
+    let subscription = await active.pushManager.getSubscription()
     if (subscription && !sameKey(subscription.options.applicationServerKey, key)) {
       await subscription.unsubscribe()
       subscription = null
     }
     if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
+      subscription = await active.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: key as BufferSource,
       })
